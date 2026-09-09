@@ -1,0 +1,42 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/data/browsers
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          version: "0.12.9"
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run ruff check src tests tools
+      - run: uv run ruff format --check src tests tools
+      - run: node --check src/scout/app.js
+      - run: uv run pytest -q
+      - run: uv run python tools/browser_smoke.py
+      - run: uv run python tools/check_secrets.py
+      - run: bash tools/check_history.sh
+      - run: uv build --out-dir dist
+      - run: uv run python tools/check_release.py dist
+      - name: Install and smoke-check the wheel outside the checkout
+        run: |
+          uv venv "$RUNNER_TEMP/scout-wheel"
+          uv pip install --python "$RUNNER_TEMP/scout-wheel/bin/python" dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/scout-wheel/bin/scout" --help
+          "$RUNNER_TEMP/scout-wheel/bin/python" "$GITHUB_WORKSPACE/tools/wheel_smoke.py"

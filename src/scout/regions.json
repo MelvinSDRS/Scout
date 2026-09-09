@@ -1,0 +1,128 @@
+{
+  "US": [
+    {
+      "name": "Portland, OR",
+      "city": "portland",
+      "radius": 805
+    },
+    {
+      "name": "Los Angeles, CA",
+      "city": "la",
+      "radius": 805
+    },
+    {
+      "name": "Durango, CO",
+      "city": "108129565875623",
+      "radius": 805
+    },
+    {
+      "name": "Broadus, MT",
+      "city": "109613652398861",
+      "radius": 805
+    },
+    {
+      "name": "Fort Worth, TX",
+      "city": "114148045261892",
+      "radius": 805
+    },
+    {
+      "name": "Boscobel, WI",
+      "city": "106171882747436",
+      "radius": 805
+    },
+    {
+      "name": "Fitzgerald, GA",
+      "city": "112442175434378",
+      "radius": 805
+    },
+    {
+      "name": "Oneonta, NY",
+      "city": "113333232014461",
+      "radius": 805
+    },
+    {
+      "name": "McGrath, AK",
+      "city": "108203532540672",
+      "radius": 805
+    },
+    {
+      "name": "Prudhoe Bay, AK",
+      "city": "171705676191734",
+      "radius": 805
+    },
+    {
+      "name": "Unalaska, AK",
+      "city": "103760199662259",
+      "radius": 805
+    },
+    {
+      "name": "Elfin Cove, AK",
+      "city": "196626670491979",
+      "radius": 805
+    },
+    {
+      "name": "Honolulu, HI",
+      "city": "110444738976181",
+      "radius": 805
+    }
+  ],
+  "CA": [
+    {
+      "name": "Saint Quentin, NB",
+      "city": "108562712499750",
+      "radius": 500
+    },
+    {
+      "name": "Baysville, ON",
+      "city": "183509305085293",
+      "radius": 500
+    },
+    {
+      "name": "Compeer, AB",
+      "city": "112682018747951",
+      "radius": 500
+    },
+    {
+      "name": "One Hundred Mile House, BC",
+      "city": "111922062167097",
+      "radius": 500
+    },
+    {
+      "name": "Moosehorn, MB",
+      "city": "112583085425676",
+      "radius": 500
+    },
+    {
+      "name": "Skibi Lake, ON",
+      "city": "362073744288039",
+      "radius": 500
+    },
+    {
+      "name": "Yellowknife, NT",
+      "city": "114459998571182",
+      "radius": 500
+    },
+    {
+      "name": "White Horse, YK",
+      "city": "115392538472860",
+      "radius": 500
+    },
+    {
+      "name": "Channel-Port aux Basques, NL",
+      "city": "115477851802820",
+      "radius": 500
+    }
+  ],
+  "FR": [
+    {
+      "name": "Chartres",
+      "city": "115700691777803",
+      "radius": 500
+    },
+    {
+      "name": "Montpellier",
+      "city": "115100621840245",
+      "radius": 500
+    }
+  ]
+}
