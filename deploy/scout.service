@@ -1,0 +1,17 @@
+[Unit]
+Description=Scout - Facebook Marketplace watches
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@SCOUT_ROOT@
+ExecStart=@SCOUT_EXECUTABLE@ serve
+Restart=on-failure
+RestartSec=15
+UMask=0077
+NoNewPrivileges=true
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

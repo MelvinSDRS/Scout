@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Scout · Marketplace explorer</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <section id="login" class="login">
+      <div class="brand">
+        <span class="logo">s</span> scout<span class="beta">PRIVATE</span>
+      </div>
+      <h1>Your next find<br />is out there.</h1>
+      <p>Search across borders. Keep an eye on the things you love.</p>
+      <form id="login-form">
+        <label for="token">Dashboard access token</label
+        ><input id="token" type="password" required autocomplete="off" /><button
+          class="primary"
+        >
+          Connect
+        </button>
+        <p id="login-error" role="alert"></p>
+      </form>
+    </section>
+    <div id="app" hidden>
+      <aside>
+        <a class="brand" href="#search"
+          ><span class="logo">s</span> scout<span class="beta">PRIVATE</span></a
+        >
+        <div class="nav-label">YOUR MARKETPLACE</div>
+        <nav aria-label="Main navigation">
+          <button data-view="search" class="active">
+            <span>⌕</span> Explore</button
+          ><button data-view="watches">
+            <span>◉</span> My watches <b id="watch-count">0</b></button
+          ><button data-view="status"><span>≋</span> Service status</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="connection">
+            <i id="worker-dot"></i><span id="worker-label">Connecting</span>
+          </div>
+          <p>A wider search.<br />A little less scrolling.</p>
+          <button id="disconnect" class="quiet">Lock dashboard ↗</button>
+        </div>
+      </aside>
+      <main>
+        <header>
+          <span>YOUR PERSONAL FINDER</span
+          ><span class="private-tag">● Private workspace</span>
+        </header>
+        <div id="notice" role="status" hidden></div>
+        <section id="view-search">
+          <div class="hero">
+            <div class="eyebrow">GOOD FINDS HAVE NO BORDERS</div>
+            <h1>Find it beyond your city<span>.</span></h1>
+            <p>One search. Three countries. Your next great find.</p>
+          </div>
+          <form id="search-form" class="search-panel">
+            <div class="search-bar">
+              <span aria-hidden="true">⌕</span
+              ><label class="sr-only" for="query"
+                >What are you looking for?</label
+              ><input
+                id="query"
+                minlength="2"
+                maxlength="200"
+                required
+                placeholder="What are you looking for? Try Oakley Judge"
+              /><button class="primary" id="search-submit">
+                Search Marketplace <span>↗</span>
+              </button>
+            </div>
+            <div class="search-options">
+              <div class="country-picks">
+                <span class="subtle">Search in</span
+                ><label class="chip"
+                  ><input type="checkbox" name="country" value="US" checked />🇺🇸
+                  United States</label
+                ><label class="chip"
+                  ><input type="checkbox" name="country" value="CA" checked />🇨🇦
+                  Canada</label
+                ><label class="chip"
+                  ><input type="checkbox" name="country" value="FR" checked />🇫🇷
+                  France</label
+                >
+              </div>
+              <details id="filters">
+                <summary>Refine search <span>＋</span></summary>
+                <div class="filter-grid">
+                  <label
+                    >Exclude words or phrases<input
+                      id="exclude"
+                      placeholder="glasses, sunglasses, lunettes"
+                    /><small>Separate phrases with commas.</small></label
+                  ><label
+                    >Required words or phrases<input
+                      id="include"
+                      placeholder="Defaults to every word in your search"
+                    /><small
+                      >Overrides the default title matching.</small
+                    ></label
+                  ><label id="photo-profile-field" hidden
+                    >Notification photo check<select id="image-profile">
+                      <option value="">Title filters only</option>
+</select
+                    ><small
+                      >Strong photo matches alert you. Uncertain images stay in
+                      My watches → Review photos.</small
+                    ></label
+                  >
+                  <label
+                    >Alternative title words<textarea
+                      id="include-any"
+                      rows="3"
+                      placeholder="spider-man, spiderman&#10;backpack, back pack, sac à dos"
+                    ></textarea
+                    ><small
+                      >One group per line; one phrase from each group must
+                      match. Replaces the default search-word
+                      requirement.</small
+                    ></label
+                  >
+                  <label
+                    >Maximum USD<input
+                      id="price-USD"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="No limit" /></label
+                  ><label
+                    >Maximum CAD<input
+                      id="price-CAD"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="No limit" /></label
+                  ><label
+                    >Maximum EUR<input
+                      id="price-EUR"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="No limit" /></label
+                  >
+                </div>
+                <p class="fine">
+                  Price limits apply only to currencies with a limit entered.
+                  Listings with unknown prices are excluded when a limit is set.
+                </p>
+              </details>
+            </div>
+          </form>
+          <div class="recent-line">
+            <span class="eyebrow">RECENT SEARCHES</span>
+            <div id="recent"></div>
+          </div>
+          <section id="welcome" class="welcome">
+            <div class="map-art" aria-hidden="true">
+              <span>🇺🇸</span><span>🇨🇦</span><span>🇫🇷</span>
+              <div class="map-caption">
+                LOCAL LISTINGS. WIDER POSSIBILITIES.
+              </div>
+            </div>
+            <h2>Start with something worth finding.</h2>
+            <p>
+              We check regional Marketplace searches and bring the results
+              together.<br />Like your search? Turn it into a watch and get
+              notified in Telegram.
+            </p>
+            <div class="steps">
+              <span><b>01</b> Search across countries</span
+              ><span><b>02</b> Explore local listings</span
+              ><span><b>03</b> Watch for new matches</span>
+            </div>
+          </section>
+          <section id="results" hidden>
+            <div class="results-heading">
+              <div>
+                <div class="eyebrow">YOUR SEARCH</div>
+                <h2 id="result-title"></h2>
+                <p id="result-summary" class="subtle"></p>
+              </div>
+              <div class="actions">
+                <button id="cancel-search" class="quiet">Stop search</button
+                ><button id="create-watch" class="primary">
+                  ◉ Create watch
+                </button>
+              </div>
+            </div>
+            <div class="progress"><div id="progress-fill"></div></div>
+            <div class="progress-caption">
+              <span id="progress-text" aria-live="polite"></span
+              ><span>Results appear as each region finishes</span>
+            </div>
+            <div
+              id="country-tabs"
+              class="tabs"
+              role="tablist"
+              aria-label="Results by country"
+            ></div>
+            <div class="results-toolbar">
+              <span id="listing-count"></span
+              ><label class="switch"
+                ><input id="suggestions" type="checkbox" /> Include broader
+                suggestions</label
+              >
+            </div>
+            <p class="fine">
+              Title matches use your search and filters. Suggestions can include
+              unrelated items from Facebook. Country tabs group searches by
+              area; Facebook can include shipping suggestions from other
+              countries. Check each seller’s location. These results are a
+              regional sample, not every listing in a country.
+            </p>
+            <div id="listing-grid" class="listing-grid"></div>
+            <div id="empty-results" class="empty" hidden></div>
+            <button id="load-more" class="secondary" hidden>
+              Load more results
+            </button>
+            <details class="coverage">
+              <summary>Regional coverage &amp; search details</summary>
+              <div id="region-list"></div>
+            </details>
+          </section>
+        </section>
+        <section id="view-watches" hidden>
+          <div class="hero">
+            <div class="eyebrow">LET THE FINDS COME TO YOU</div>
+            <h1>My watches<span>.</span></h1>
+            <p>Saved searches, quietly checking for your next match.</p>
+          </div>
+          <div class="info-strip">
+            ↗ New matches go to
+            <a class="topic-link" target="_blank" rel="noopener"
+              >your Telegram topic</a
+            >.
+          </div>
+          <div id="watches" class="watch-list"></div>
+          <section id="photo-review" hidden>
+            <h2>Photos to review</h2>
+            <p class="fine">
+              These candidates were not confidently matched to the reference.
+              They are not confirmed rejections. Review entries are limited to
+              the latest 2,000 photo checks per watch.
+            </p>
+            <div id="photo-review-grid" class="listing-grid"></div>
+            <button id="photo-review-more" class="secondary" hidden>
+              Load more
+            </button>
+          </section>
+          <button class="primary" id="new-search">
+            Explore a new search ↗
+          </button>
+        </section>
+        <section id="view-status" hidden>
+          <div class="hero">
+            <div class="eyebrow">BEHIND THE SEARCH</div>
+            <h1>Service status<span>.</span></h1>
+            <p>Connection health and the latest scheduled checks.</p>
+          </div>
+          <div id="health-cards" class="health-cards"></div>
+          <p class="fine">
+            Facebook can cap or broaden results and change the available radius.
+            A completed check does not guarantee full country coverage.
+          </p>
+          <div id="scan-status"></div>
+        </section>
+        <footer>
+          SCOUT
+          <span
+            >Made for the find. Facebook Marketplace · USA / Canada /
+            France</span
+          >
+        </footer>
+      </main>
+    </div>
+    <dialog id="watch-dialog">
+      <form id="watch-form">
+        <div class="eyebrow">KEEP AN EYE ON IT</div>
+        <h2>Turn this search into a watch.</h2>
+        <p>
+          Get Telegram notifications when a new matching listing is found.
+          Matches already shown here won't be sent again.
+        </p>
+        <label
+          >Watch name<input id="watch-name" required maxlength="100" /></label
+        ><label
+          >Check every<select id="watch-interval">
+            <option value="30">30 minutes</option>
+            <option value="60" selected>1 hour</option>
+            <option value="180">3 hours</option>
+            <option value="360">6 hours</option>
+            <option value="1440">24 hours</option>
+          </select></label
+        >
+        <p class="fine">
+          Regions still unchecked may produce a few initial match alerts. Timing
+          depends on the number of searches in progress.
+        </p>
+        <p id="watch-error" role="alert"></p>
+        <div class="actions">
+          <button type="button" id="close-dialog" class="quiet">Cancel</button
+          ><button class="primary" id="save-watch">Create watch</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
