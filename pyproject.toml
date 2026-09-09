@@ -28,6 +28,7 @@ Documentation = "https://github.com/MelvinSDRS/Scout#readme"
 
 [project.scripts]
 scout = "scout.cli:main"
+scout-login = "scout.login_client:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

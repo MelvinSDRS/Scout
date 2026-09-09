@@ -24,11 +24,14 @@ jobs:
           python-version: "3.12"
       - run: uv sync --frozen
       - run: uv run playwright install --with-deps chromium
+      - run: sudo apt-get install -y xvfb xauth x11vnc novnc openssh-server
       - run: uv run ruff check src tests tools
       - run: uv run ruff format --check src tests tools
       - run: node --check src/scout/app.js
       - run: uv run pytest -q
       - run: uv run python tools/browser_smoke.py
+      - run: uv run python tools/login_smoke.py
+      - run: uv run python tools/login_ssh_smoke.py
       - run: uv run python tools/check_secrets.py
       - run: bash tools/check_history.sh
       - run: uv build --out-dir dist
