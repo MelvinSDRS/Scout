@@ -36,7 +36,8 @@ CI runs on Linux and checks the source, fixtures, browser workflow and build arc
 uses read-only repository permissions and does not publish artifacts automatically.
 Before a public release, review the source archive contents and the license notices, run
 an installation check from the built wheel, and confirm private vulnerability reporting is
-enabled. Audit the full Git history separately; the normal scanner checks current source.
+enabled. CI audits all available Git refs with Gitleaks; the Python scanner checks current source.
+Run both when reviewing a release.
 
 Private runtime files are excluded by an explicit source-distribution allowlist and by
 `.gitignore`. Both wheel and source archives are checked for credentials and private paths.

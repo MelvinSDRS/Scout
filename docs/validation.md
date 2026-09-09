@@ -22,9 +22,8 @@ paths. Photo profiles require operator-supplied valid references; unavailable pr
 be selected for new watches. The existing runtime can retain its own private configuration,
 reference images and database while the source becomes portable.
 
-GitHub-hosted CI execution, repository history review, private-reporting setup and registry
-publication require an actual hosting repository. Adding a workflow file does not establish
-that GitHub has run it. Publication itself is a separate action.
+Hosted CI runs in [MelvinSDRS/Scout](https://github.com/MelvinSDRS/Scout). Repository visibility,
+private-reporting configuration and registry publication are separate administrative actions.
 
 ## Local publication-preparation checks — 2026-09-08
 
@@ -41,5 +40,17 @@ The portable user-service unit passes systemd validation. Local source lint/form
 syntax, workflow YAML and the current-file secret scan pass. Secret verification over the
 network is disabled; one documented exception covers synthetic env fixture field names.
 
-These are local results. GitHub-hosted execution and complete Git-history scanning have not
-been verified because no accessible hosting repository/history is configured in this workspace.
+## Hosted validation — 2026-09-09
+
+[CI run 34309483861](https://github.com/MelvinSDRS/Scout/actions/runs/34309483861) passed on
+Ubuntu 24.04 for initial commit `8ec74d233faa2da3e846027c7d4c67f9af9930bd`. It verified the
+locked dependency installation, Chromium/browser checks, lint/format, JavaScript syntax,
+regression tests, source secret scan, full-history Gitleaks scan, wheel/source builds, release
+archive contents and isolated wheel installation/API checks.
+
+There was no preceding Git repository in the workspace. The new repository begins with the
+reviewed source snapshot; private runtime data and archived operator notes were never committed.
+Gitleaks 8.30.1 scanned the full initial history with no findings. Git object integrity checks
+also passed. CI now fetches full history and runs the checksum-verified history scanner on
+subsequent changes. This is evidence of the scanner results, not a guarantee that all possible
+secrets or vulnerabilities have been ruled out.
