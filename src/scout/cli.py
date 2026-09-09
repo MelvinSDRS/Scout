@@ -35,7 +35,25 @@ def main():
     login_parser.add_argument(
         "--remote", action="store_true", help="Use a temporary browser over SSH"
     )
-    login_parser.add_argument("--port", type=int, default=6080)
+    login_parser.add_argument(
+        "--port", type=int, help="Viewer port (default: 6080, or a free port if busy)"
+    )
+    setup = login_parser.add_mutually_exclusive_group()
+    setup.add_argument(
+        "--setup", action="store_true", help="Install browser/viewer prerequisites, then log in"
+    )
+    setup.add_argument(
+        "--setup-only", action="store_true", help="Install prerequisites without opening Facebook"
+    )
+    login_parser.add_argument(
+        "--check", action="store_true", help="Verify the saved session headlessly, then exit"
+    )
+    login_parser.add_argument(
+        "--ssh-host",
+        metavar="USER@HOST",
+        help="Your SSH alias or destination for the tunnel command",
+    )
+    login_parser.add_argument("--handoff", help=argparse.SUPPRESS)
     probe = commands.add_parser(
         "probe", help="Search one region without saving listings or sending alerts"
     )
@@ -99,9 +117,28 @@ def main():
         elif args.command == "login":
             from .login import login
 
-            if not 1024 <= args.port <= 65535:
+            if args.handoff:
+                from .login_handoff import login_from_client
+
+                if args.remote or args.port or args.check or args.setup_only or args.ssh_host:
+                    parser.error("--handoff cannot be combined with other login modes")
+                login_from_client(settings, args.handoff, setup=args.setup)
+                return
+            if args.port is not None and not 1024 <= args.port <= 65535:
                 parser.error("Login port must be between 1024 and 65535")
-            login(settings, args.remote, args.port)
+            if args.check and (args.remote or args.setup_only or args.ssh_host or args.port):
+                parser.error(
+                    "--check cannot be combined with remote viewer options or --setup-only"
+                )
+            login(
+                settings,
+                args.remote or bool(args.ssh_host),
+                args.port,
+                setup=args.setup,
+                setup_only=args.setup_only,
+                check=args.check,
+                ssh_host=args.ssh_host,
+            )
         elif args.command == "probe":
 
             async def probe():
@@ -125,6 +162,8 @@ def main():
                         await provider.close()
 
             asyncio.run(probe())
+    except KeyboardInterrupt:
+        parser.exit(130, "Cancelled. You can rerun the command when ready.\n")
     except Exception as exc:
         parser.exit(1, f"{safe_error(exc)}\n")
 

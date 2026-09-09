@@ -17,7 +17,8 @@ publication times. See [architecture and limitations](docs/architecture.md).
 - Optional: your own Telegram bot token and destination.
 
 Linux is the supported platform. Worker locking, resource limits and the optional headless
-login viewer use Unix/Linux facilities; Windows and macOS are not currently validated.
+login viewer use Unix/Linux facilities. The separate laptop launcher uses Python and OpenSSH;
+its end-to-end tests run on Linux. Windows and macOS execution is not currently validated.
 
 ## Quick start
 
@@ -26,16 +27,40 @@ From a checkout or extracted source release:
 ```bash
 cd Scout
 uv sync --frozen
-cp .env.example .env
-PLAYWRIGHT_BROWSERS_PATH="$PWD/data/browsers" uv run playwright install --with-deps chromium
-uv run scout login
+uv run scout login --setup
 uv run scout serve
 ```
 
-The Playwright system-dependency step may require administrator access. On a headless
-server, use the [remote login instructions](docs/deployment.md#headless-facebook-login).
-Complete Facebook checkpoints yourself; Scout does not bypass them. Stop a running
-worker before opening the login browser.
+`login --setup` installs Chromium and its system dependencies, then opens the login browser.
+On a Debian/Ubuntu server without a display it also installs a temporary browser viewer and
+prints SSH tunnel instructions. Installation may ask for your sudo password. Subsequent
+logins only need `uv run scout login`.
+
+Sign into Facebook, complete any checkpoints yourself, and open Marketplace. Scout detects
+completion automatically and checks that the saved session works headlessly before exiting.
+You do not need to press Enter or copy cookies. Stop a running Scout worker before logging in.
+See [login and troubleshooting](docs/deployment.md#facebook-login) for remote servers,
+preinstalled dependencies and session checks.
+
+**Using a headless server?** From the checkout on your own computer, run:
+
+```bash
+python3 tools/login_remote.py user@server
+```
+
+This assumes Scout is in `~/Scout` on the server; use `--directory /path/to/Scout` otherwise.
+The launcher installs missing server prerequisites, creates the SSH tunnel, and opens the
+login viewer with its temporary password supplied automatically. Just complete Facebook login.
+A running Scout user service for that checkout is paused and restored automatically.
+
+Your computer only needs Python 3.10+, OpenSSH and a browser; no local Scout installation or
+Playwright download is needed. You can also copy the standalone
+[login launcher](src/scout/login_client.py) to your computer and run
+`python3 login_client.py user@server`. See [the remote guide](docs/deployment.md#headless-facebook-login).
+
+No configuration file is needed for the default local setup. To change settings or enable
+Telegram, copy `.env.example` to `.env` and edit it. Browser installation and login use the
+same configured data directory, including `SCOUT_DATA` in `.env`.
 
 Open [the local dashboard](http://127.0.0.1:8765). In another terminal, run `uv run scout token`
 and enter that access token. It stays in browser-tab memory. All `/api/` routes require it.

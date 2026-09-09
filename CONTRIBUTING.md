@@ -14,6 +14,10 @@ uv run ruff format --check src tests tools
 node --check src/scout/app.js
 uv run pytest -q
 uv run python tools/browser_smoke.py
+uv run scout login --setup-only --remote
+uv run python tools/login_smoke.py
+# For the full SSH launcher smoke test, install openssh-server first:
+uv run python tools/login_ssh_smoke.py
 uv run python tools/check_secrets.py
 bash tools/check_history.sh
 uv build --out-dir dist
@@ -23,7 +27,15 @@ uv run python tools/check_release.py dist
 Browser tests use isolated local HTML and synthetic records, not live Facebook searches.
 Some require Chromium and local sockets; install Chromium first. No Telegram credentials
 are needed, and test notifications are intercepted. The browser smoke test uses port 8766;
-production defaults to 8765. Browser tests must not be silently skipped in CI.
+production defaults to 8765. The login smoke test selects a free loopback port and verifies
+the real password-protected viewer, keyboard input and cleanup using a disposable profile.
+Its setup command installs system packages and may ask for sudo; no Facebook login is needed.
+Browser tests must not be silently skipped in CI.
+
+The SSH login smoke test creates a temporary loopback-only SSH daemon with disposable keys,
+a separate known-hosts file and synthetic Facebook pages. It runs the actual laptop launcher,
+viewer authentication, login detection, headless profile reopening and cancellation cleanup.
+It does not use your SSH keys, change SSH configuration or log into Facebook.
 
 Keep changes focused and describe the problem, resulting behavior and relevant validation.
 Include regression coverage for persistence, scheduling, collection or API contract changes.

@@ -3,7 +3,7 @@
 import asyncio
 import os
 import secrets
-import shutil
+import shlex
 import signal
 import socket
 import subprocess
@@ -12,8 +12,11 @@ import tempfile
 import time
 from contextlib import contextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from .providers.facebook import Facebook
+from .login_setup import install_login, remote_tools
+from .models import AccessBlocked
+from .providers.facebook import Facebook, check_access
 from .store import Store
 from .worker import worker_lock
 
@@ -22,41 +25,43 @@ def remote_needed(settings, force=False):
     return force or (not os.environ.get("DISPLAY") and not settings.facebook_cdp)
 
 
-def wait_port(process, port):
+def wait_port(process, port=None, socket_path=None):
     for _ in range(100):
         if process.poll() is not None:
             raise RuntimeError("Remote display component exited; inspect login prerequisites")
         try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
-                return
+            if socket_path is not None:
+                with socket.socket(socket.AF_UNIX) as sock:
+                    sock.settimeout(0.1)
+                    sock.connect(str(socket_path))
+                    return
+            else:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+                    return
         except OSError:
             time.sleep(0.1)
     raise RuntimeError("Remote display did not become ready")
 
 
 @contextmanager
-def remote_display(settings, port=6080):
+def remote_display(settings, port=6080, *, socket_path=None):
     if settings.facebook_cdp:
         raise RuntimeError("Unset FACEBOOK_CDP_URL before using --remote")
     root = settings.data_dir / "login-runtime"
-    x11vnc = shutil.which("x11vnc") or str(root / "usr/bin/x11vnc")
-    novnc = Path("/usr/share/novnc")
-    if not (novnc / "vnc.html").exists():
-        novnc = root / "usr/share/novnc"
-    if (
-        not all(shutil.which(cmd) for cmd in ("Xvfb", "xauth"))
-        or not Path(x11vnc).exists()
-        or not (novnc / "vnc.html").exists()
-    ):
+    x11vnc, novnc, missing = remote_tools(settings)
+    if missing:
         raise RuntimeError(
-            "Remote login needs Xvfb, xauth, x11vnc and noVNC. Run tools/install-login-runtime.sh"
+            f"Remote login is missing {', '.join(missing)}. Run: scout login --setup --remote"
         )
     # Refuse an occupied public-facing bridge port before starting any subprocess.
-    with socket.socket() as check:
-        try:
-            check.bind(("127.0.0.1", port))
-        except OSError:
-            raise RuntimeError(f"Port {port} is busy; use login --port with another port") from None
+    if socket_path is None:
+        with socket.socket() as check:
+            try:
+                check.bind(("127.0.0.1", port))
+            except OSError:
+                raise RuntimeError(
+                    f"Port {port} is busy; use login --port with another port"
+                ) from None
     processes = []
 
     def interrupted(signum, frame):
@@ -159,6 +164,11 @@ def remote_display(settings, port=6080):
                     ]
                 )
                 wait_port(vnc, vnc_port)
+                listen = (
+                    ["--unix-listen", str(socket_path)]
+                    if socket_path is not None
+                    else [f"127.0.0.1:{port}"]
+                )
                 bridge = launch(
                     [
                         sys.executable,
@@ -166,11 +176,11 @@ def remote_display(settings, port=6080):
                         "websockify",
                         "--web",
                         str(novnc),
-                        f"127.0.0.1:{port}",
+                        *listen,
                         f"127.0.0.1:{vnc_port}",
                     ]
                 )
-                wait_port(bridge, port)
+                wait_port(bridge, port, socket_path=socket_path)
                 os.environ.update(DISPLAY=display, XAUTHORITY=str(auth))
                 yield password
             finally:
@@ -191,61 +201,203 @@ def remote_display(settings, port=6080):
                         os.environ[key] = value
 
 
-async def wait_for_enter():
-    loop = asyncio.get_running_loop()
-    future = loop.create_future()
+MARKETPLACE_URL = "https://www.facebook.com/marketplace/"
 
-    def ready():
-        line = sys.stdin.readline()
-        if not future.done():
-            if line:
-                future.set_result(None)
-            else:
-                future.set_exception(RuntimeError("Login input closed; session ended"))
 
-    loop.add_reader(sys.stdin.fileno(), ready)
+def viewer_instructions(port, password, ssh_host=None):
+    url = f"http://127.0.0.1:{port}/vnc.html?autoconnect=true&resize=scale"
+    if ssh_host or os.environ.get("SSH_CONNECTION"):
+        destination = shlex.quote(ssh_host or "YOUR_SSH_HOST")
+        print(
+            "Keep this terminal open. In another terminal on your own computer, run:\n"
+            f"  ssh -N -o ExitOnForwardFailure=yes -L {port}:127.0.0.1:{port} -- {destination}",
+            flush=True,
+        )
+        if not ssh_host:
+            print("Replace YOUR_SSH_HOST with the user@host or SSH alias you use to connect.")
+    else:
+        print("Open the viewer on this computer (over SSH, forward this loopback port first).")
+    print(f"Open: {url}\nTemporary viewer password: {password}", flush=True)
+
+
+def available_port(port=None):
+    """Prefer the familiar port, but don't make a default-port collision a setup task."""
+    with socket.socket() as sock:
+        try:
+            sock.bind(("127.0.0.1", port if port is not None else 6080))
+        except OSError:
+            if port is not None:
+                raise RuntimeError(
+                    f"Port {port} is busy; retry with --port and a free port"
+                ) from None
+            sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+async def session_ready(page):
+    """Require an authenticated Marketplace surface, never just absence of a login form."""
+    parsed = urlsplit(page.url)
+    if parsed.scheme != "https" or parsed.hostname != "www.facebook.com":
+        return False
+    if not parsed.path.startswith("/marketplace/"):
+        return False
+    await check_access(page)
+    cookies = {c["name"]: c["value"] for c in await page.context.cookies([MARKETPLACE_URL])}
+    if not cookies.get("c_user") or not cookies.get("xs"):
+        return False
+    # A blank page, generic Facebook home, or unavailable-Marketplace screen is not success.
+    links = page.locator(
+        'a[href*="/marketplace/item/"], a[href*="/marketplace/create"], '
+        'a[href*="/marketplace/categories/"]'
+    )
+    for link in await links.all():
+        if await link.is_visible():
+            return True
+    return False
+
+
+async def wait_for_session(page, timeout=1800):
+    from playwright.async_api import Error
+
+    async def wait():
+        consecutive = 0
+        while True:
+            if page.is_closed():
+                raise RuntimeError("Login browser closed. Run scout login again to continue.")
+            try:
+                ready = await session_ready(page)
+            except AccessBlocked:
+                ready = False  # Leave checkpoints open for the person signing in.
+            except Error:
+                if page.is_closed():
+                    raise RuntimeError("Login browser closed. Run scout login again.") from None
+                ready = False  # Navigation can replace the execution context during login.
+            consecutive = consecutive + 1 if ready else 0
+            if consecutive >= 2:
+                return
+            await asyncio.sleep(2)
+
     try:
-        await asyncio.wait_for(future, timeout=1800)
+        await asyncio.wait_for(wait(), timeout=timeout)
     except TimeoutError:
-        raise RuntimeError("Login timed out after 30 minutes; run login again") from None
+        raise RuntimeError(
+            "Login timed out. Open Marketplace after completing login/checkpoints, "
+            "then retry scout login."
+        ) from None
+
+
+async def open_marketplace(fb, headed=False):
+    from playwright.async_api import Error
+
+    try:
+        await fb.start(headed=headed)
+    except Error:
+        if fb.settings.facebook_cdp:
+            message = (
+                "Cannot connect to FACEBOOK_CDP_URL. Start your CDP browser or unset that setting."
+            )
+        else:
+            message = (
+                "Cannot start Chromium. Run scout login --setup; if installed, stop other "
+                "browsers using Scout's profile and check that the display is available."
+            )
+        raise RuntimeError(message) from None
+    page = await fb.context.new_page()
+    try:
+        response = await page.goto(MARKETPLACE_URL, wait_until="domcontentloaded", timeout=60000)
+    except Error:
+        await page.close()
+        raise RuntimeError(
+            "Cannot load Facebook Marketplace. Check your connection and retry."
+        ) from None
+    if response and response.status >= 400:
+        await page.close()
+        raise RuntimeError(
+            f"Facebook returned HTTP {response.status}. Retry later or check access in your browser."
+        )
+    return page
+
+
+async def check_session(settings):
+    fb = Facebook(settings)
+    page = None
+    try:
+        page = await open_marketplace(fb)
+        try:
+            await wait_for_session(page, timeout=20)
+        except RuntimeError:
+            raise RuntimeError(
+                "Saved session could not be verified in Marketplace. Run scout login and "
+                "complete any checkpoint; Marketplace must be available to your account."
+            ) from None
     finally:
-        loop.remove_reader(sys.stdin.fileno())
+        try:
+            if page is not None and not page.is_closed():
+                await page.close()
+        finally:
+            await fb.close()
 
 
 async def browser_login(settings):
     fb = Facebook(settings)
+    page = None
     try:
-        await fb.start(headed=True)
-        page = await fb.context.new_page()
-        await page.goto(
-            "https://www.facebook.com/marketplace/", wait_until="domcontentloaded", timeout=60000
-        )
+        print("Opening Facebook. Sign in and complete any checkpoints in the browser.", flush=True)
+        page = await open_marketplace(fb, headed=True)
         print(
-            "Complete login in the browser, then press Enter here (30-minute timeout).", flush=True
+            "Open Marketplace when done. Scout detects login automatically; no Enter needed.\n"
+            "You have 30 minutes. Press Ctrl+C to cancel.",
+            flush=True,
         )
-        await wait_for_enter()
-        if await page.locator('input[type="password"]').count() or any(
-            part in page.url for part in ("/login", "/checkpoint")
-        ):
-            raise RuntimeError(
-                "Facebook still shows login/checkpoint; authentication is not complete"
-            )
-        await page.close()
-        Store(settings.data_dir / "scout.sqlite3").resume_source("facebook")
-        print("Browser session saved. Restart with: systemctl --user start scout")
+        await wait_for_session(page)
+        print(
+            "Login detected. Checking the attached browser session..."
+            if settings.facebook_cdp
+            else "Login detected. Checking that the saved session works headlessly...",
+            flush=True,
+        )
     finally:
-        await fb.close()
+        try:
+            if page is not None and not page.is_closed():
+                await page.close()
+        finally:
+            await fb.close()
+    # Closing the persistent context flushes the profile before reopening it headlessly.
+    await check_session(settings)
+    Store(settings.data_dir / "scout.sqlite3").resume_source("facebook")
+    print(
+        "Facebook session verified. Login complete.\n"
+        "Start Scout: scout serve\n"
+        "If you installed the user service: systemctl --user start scout",
+        flush=True,
+    )
 
 
-def login(settings, force_remote=False, port=6080):
+def login(
+    settings,
+    force_remote=False,
+    port=None,
+    *,
+    setup=False,
+    setup_only=False,
+    check=False,
+    ssh_host=None,
+):
+    remote = remote_needed(settings, force_remote)
+    if force_remote and settings.facebook_cdp:
+        raise RuntimeError("Unset FACEBOOK_CDP_URL before using --remote")
     with worker_lock(settings.data_dir):
-        if remote_needed(settings, force_remote):
+        if setup or setup_only:
+            install_login(settings, remote=remote and not check)
+        if setup_only:
+            return
+        if check:
+            asyncio.run(check_session(settings))
+            print("Saved Facebook session verified in Marketplace.")
+        elif remote:
+            port = available_port(port)
             with remote_display(settings, port) as password:
-                print(
-                    f"On your own computer run: ssh -N -L {port}:127.0.0.1:{port} user@server\n"
-                    f"Then open http://127.0.0.1:{port}/vnc.html\nTemporary VNC password: {password}",
-                    flush=True,
-                )
+                viewer_instructions(port, password, ssh_host)
                 asyncio.run(browser_login(settings))
         else:
             asyncio.run(browser_login(settings))

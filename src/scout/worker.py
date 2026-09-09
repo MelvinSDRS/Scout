@@ -16,7 +16,10 @@ def worker_lock(data_dir):
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            raise RuntimeError("Another worker or login process is already running") from None
+            raise RuntimeError(
+                "Another worker or login process is already running. Stop scout serve/worker "
+                "(Ctrl+C), or run systemctl --user stop scout, then retry."
+            ) from None
         yield
 
 
