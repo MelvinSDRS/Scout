@@ -54,9 +54,19 @@ class Facebook:
     async def start(self, headed=False):
         if self.context:
             return
+        import asyncio
+
         from playwright.async_api import async_playwright
 
-        self.playwright = await async_playwright().start()
+        startup = asyncio.create_task(async_playwright().start())
+        try:
+            self.playwright = await asyncio.shield(startup)
+        except asyncio.CancelledError:
+            # Cancellation before start() returns otherwise loses the driver handle and
+            # leaves asyncio.run waiting on its orphaned transport during SSH teardown.
+            runtime = await startup
+            await runtime.stop()
+            raise
         if self.settings.facebook_cdp:
             self.browser = await self.playwright.chromium.connect_over_cdp(
                 self.settings.facebook_cdp

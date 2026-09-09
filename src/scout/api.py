@@ -1,16 +1,15 @@
 import asyncio
-import secrets
 import time
 from contextlib import asynccontextmanager, suppress
 from importlib.resources import files
 from typing import Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from .dashboard_auth import DashboardAuth
 from .image_filter import PhotoFilter
 from .image_profiles import available_profiles, get_profile
 from .models import SearchSpec, Watch
@@ -42,18 +41,17 @@ def create_app(store, settings, start_worker=True):
 
     app = FastAPI(title="Scout", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.allowed_hosts))
-    bearer = HTTPBearer(auto_error=False)
+    auth = DashboardAuth(store, settings)
+    auth.install(app)
+    authorize = auth.authorize
 
-    def authorize(
-        request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(bearer)
-    ):
-        origin = request.headers.get("origin")
-        if origin and origin != str(request.base_url).rstrip("/"):
-            raise HTTPException(403, "Cross-origin requests are disabled")
-        if credentials is None or not secrets.compare_digest(
-            credentials.credentials, settings.api_token
-        ):
-            raise HTTPException(401, "Enter your access token")
+    @app.middleware("http")
+    async def private_responses(request, call_next):
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Frame-Options"] = "DENY"
+        return response
 
     @app.get("/", response_class=HTMLResponse)
     def index():

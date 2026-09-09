@@ -14,15 +14,19 @@
       </div>
       <h1>Your next find<br />is out there.</h1>
       <p>Search across borders. Keep an eye on the things you love.</p>
-      <form id="login-form">
-        <label for="token">Dashboard access token</label
-        ><input id="token" type="password" required autocomplete="off" /><button
-          class="primary"
-        >
-          Connect
-        </button>
-        <p id="login-error" role="alert"></p>
-      </form>
+      <p>Open Scout from your computer to sign in automatically:</p>
+      <pre><code>uv run scout open</code></pre>
+      <p class="fine">Using a server? Run the desktop launcher with <code>--dashboard</code>.
+        Your browser stays signed in for 30 days.</p>
+      <details>
+        <summary>Advanced: use an access token</summary>
+        <form id="login-form">
+          <label for="token">Access token</label>
+          <input id="token" type="password" required autocomplete="off" />
+          <button class="primary">Connect</button>
+        </form>
+      </details>
+      <p id="login-error" role="alert"></p>
     </section>
     <div id="app" hidden>
       <aside>
@@ -42,13 +46,12 @@
             <i id="worker-dot"></i><span id="worker-label">Connecting</span>
           </div>
           <p>A wider search.<br />A little less scrolling.</p>
-          <button id="disconnect" class="quiet">Lock dashboard ↗</button>
         </div>
       </aside>
       <main>
         <header>
           <span>YOUR PERSONAL FINDER</span
-          ><span class="private-tag">● Private workspace</span>
+          ><button id="disconnect" class="quiet">Sign out</button>
         </header>
         <div id="notice" role="status" hidden></div>
         <section id="view-search">

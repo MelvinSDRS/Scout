@@ -27,22 +27,45 @@ def cancellation_signals():
             signal.signal(sig, handler)
 
 
-async def login_until_disconnect(settings):
+async def login_until_disconnect(settings, parent_pid=None):
     from .login import browser_login
 
     loop = asyncio.get_running_loop()
     disconnected = loop.create_future()
+    parent_pid = os.getppid() if parent_pid is None else parent_pid
+
+    def disconnect():
+        if not disconnected.done():
+            disconnected.set_result(None)
+
+    # Raising KeyboardInterrupt inside a Playwright callback makes asyncio.run cancel
+    # the driver's initialization tasks before they can close their transport. Let our
+    # coroutine cancel and await the browser work instead, then tear down the event loop.
+    signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+    previous = {sig: signal.getsignal(sig) for sig in signals}
+    for sig in signals:
+        loop.add_signal_handler(sig, disconnect)
+
+    async def watch_parent():
+        while not disconnected.done():
+            # Some SSH/PTY implementations don't deliver EOF while descendant processes
+            # retain the terminal. Reparenting also proves that our SSH session has ended.
+            if os.getppid() != parent_pid:
+                disconnected.set_result(None)
+                return
+            await asyncio.sleep(0.2)
 
     def read_stdin():
         try:
             closed = not os.read(sys.stdin.fileno(), 1024)
         except OSError:
             closed = True  # Linux PTYs can report EIO instead of EOF after SSH disconnects.
-        if closed and not disconnected.done():
-            disconnected.set_result(None)
+        if closed:
+            disconnect()
 
     loop.add_reader(sys.stdin.fileno(), read_stdin)
     session = asyncio.create_task(browser_login(settings))
+    parent = asyncio.create_task(watch_parent())
     try:
         done, _ = await asyncio.wait((session, disconnected), return_when=asyncio.FIRST_COMPLETED)
         if disconnected in done:
@@ -50,9 +73,16 @@ async def login_until_disconnect(settings):
         await session
     finally:
         loop.remove_reader(sys.stdin.fileno())
+        parent.cancel()
+        await asyncio.gather(parent, return_exceptions=True)
         if not session.done():
             session.cancel()
-        await asyncio.gather(session, return_exceptions=True)
+        try:
+            await asyncio.gather(session, return_exceptions=True)
+        finally:
+            for sig, handler in previous.items():
+                loop.remove_signal_handler(sig)
+                signal.signal(sig, handler)
 
 
 @contextmanager
@@ -144,8 +174,9 @@ def login_from_client(settings, identifier, setup=False):
     if settings.facebook_cdp:
         raise RuntimeError("Unset FACEBOOK_CDP_URL on the server before using the laptop launcher.")
     with cancellation_signals():
+        parent_pid = os.getppid()
         ensure_runtime(settings, force=setup)
         with pause_service(), worker_lock(settings.data_dir), handoff_socket(identifier) as path:
             with remote_display(settings, socket_path=path) as password:
                 announce(password)
-                asyncio.run(login_until_disconnect(settings))
+                asyncio.run(login_until_disconnect(settings, parent_pid))

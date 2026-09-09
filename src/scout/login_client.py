@@ -25,12 +25,13 @@ def handoff_path(identifier):
     return f"/tmp/scout-login-{identifier}/viewer.sock"
 
 
-def remote_command(directory, identifier, setup=False):
+def remote_command(directory, identifier, setup=False, dashboard=False):
     # SSH joins arguments into a shell command: quote the directory explicitly.
     if directory.startswith("~/"):
         directory = '"$HOME"/' + shlex.quote(directory[2:])
     else:
         directory = shlex.quote(directory)
+    action = "open --handoff" if dashboard else f"login --handoff {shlex.quote(identifier)}"
     command = (
         f"cd -- {directory} || exit 1; "
         "if [ ! -x .venv/bin/scout ]; then "
@@ -38,7 +39,7 @@ def remote_command(directory, identifier, setup=False):
         'elif [ -x "$HOME/.local/bin/uv" ]; then "$HOME/.local/bin/uv" sync --frozen; '
         'else echo "Install uv on the server, then retry login." >&2; exit 1; fi; '
         "[ -x .venv/bin/scout ] || exit 1; fi; "
-        f"exec .venv/bin/scout login --handoff {shlex.quote(identifier)}"
+        f"exec .venv/bin/scout {action}"
     )
     return command + (" --setup" if setup else "")
 
@@ -67,8 +68,11 @@ def read_output(stream, events, output):
                 if char == "\n":
                     try:
                         event = json.loads(prefix[len(READY_PREFIX) :])
-                        events.put(("ready", event["password"]))
-                    except (ValueError, KeyError, TypeError):
+                        if event.get("kind") == "dashboard":
+                            events.put(("dashboard", event["ticket"]))
+                        else:
+                            events.put(("ready", event["password"]))
+                    except (ValueError, KeyError, TypeError, AttributeError):
                         events.put(("error", "Invalid login handoff. Update Scout on the server."))
                     prefix = ""
                 elif len(prefix) > 1024:
@@ -83,7 +87,7 @@ def read_output(stream, events, output):
         events.put(("closed", None))
 
 
-def wait_viewer(process, port, timeout=20):
+def wait_viewer(process, port, timeout=20, *, dashboard=False):
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -92,7 +96,8 @@ def wait_viewer(process, port, timeout=20):
                 "SSH disconnected before the viewer opened. Check its output and retry."
             )
         try:
-            with opener.open(f"http://127.0.0.1:{port}/vnc.html", timeout=1) as response:
+            path = "/" if dashboard else "/vnc.html"
+            with opener.open(f"http://127.0.0.1:{port}{path}", timeout=1) as response:
                 if response.status == 200:
                     return
         except (OSError, urllib.error.URLError):
@@ -103,7 +108,16 @@ def wait_viewer(process, port, timeout=20):
     )
 
 
-def connect(host, directory="Scout", setup=False, ssh_port=None, ssh_config=None):
+def connect(
+    host,
+    directory="Scout",
+    setup=False,
+    ssh_port=None,
+    ssh_config=None,
+    *,
+    dashboard=False,
+    dashboard_port=8765,
+):
     if not host or host.startswith("-") or any(c.isspace() for c in host):
         raise RuntimeError("Use a user@server destination or an SSH config alias.")
     if not shutil.which("ssh"):
@@ -126,13 +140,15 @@ def connect(host, directory="Scout", setup=False, ssh_port=None, ssh_config=None
         "-o",
         "ControlPath=none",
         "-L",
-        f"127.0.0.1:{port}:{handoff_path(identifier)}",
+        f"127.0.0.1:{port}:127.0.0.1:{dashboard_port}"
+        if dashboard
+        else f"127.0.0.1:{port}:{handoff_path(identifier)}",
     ]
     if ssh_port:
         command += ["-p", str(ssh_port)]
     if ssh_config:
         command += ["-F", str(ssh_config)]
-    command += ["--", host, remote_command(directory, identifier, setup)]
+    command += ["--", host, remote_command(directory, identifier, setup, dashboard)]
     print("Connecting to Scout. Complete any SSH or setup prompts in this terminal.", flush=True)
     process = subprocess.Popen(
         command, stdout=subprocess.PIPE, text=True, encoding="utf-8", errors="replace"
@@ -147,7 +163,7 @@ def connect(host, directory="Scout", setup=False, ssh_port=None, ssh_config=None
     deadline = time.monotonic() + 3600
     try:
         while True:
-            if time.monotonic() >= deadline:
+            if (not dashboard or not opened) and time.monotonic() >= deadline:
                 raise RuntimeError("Remote login timed out. Run the command again to continue.")
             try:
                 event, value = events.get(timeout=0.2)
@@ -159,11 +175,21 @@ def connect(host, directory="Scout", setup=False, ssh_port=None, ssh_config=None
                 raise RuntimeError(value)
             if event == "closed":
                 break
-            if event == "ready" and not opened:
-                url = viewer_url(port, value)
-                wait_viewer(process, port)
+            if event in ("ready", "dashboard") and not opened:
+                if (event == "dashboard") != dashboard:
+                    raise RuntimeError("Unexpected server response. Update Scout and retry.")
+                if dashboard:
+                    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", value):
+                        raise RuntimeError("Invalid dashboard sign-in link from server")
+                    url = f"http://127.0.0.1:{port}/#signin={value}"
+                else:
+                    url = viewer_url(port, value)
+                wait_viewer(process, port, dashboard=dashboard)
                 print(
-                    "Opening Facebook login in your browser. Finish signing in there.", flush=True
+                    "Opening your dashboard. Keep this terminal open; Ctrl+C closes the tunnel."
+                    if dashboard
+                    else "Opening Facebook login in your browser. Finish signing in there.",
+                    flush=True,
                 )
                 try:
                     browser_opened = webbrowser.open(url, new=2)
@@ -200,11 +226,25 @@ def main(argv=None):
     parser.add_argument("--setup", action="store_true", help="Reinstall server login prerequisites")
     parser.add_argument("--ssh-port", type=int, help="SSH port (otherwise uses your SSH config)")
     parser.add_argument("--ssh-config", help="Use a specific OpenSSH configuration file")
+    parser.add_argument("--dashboard", action="store_true", help="Open and sign into the dashboard")
+    parser.add_argument("--dashboard-port", type=int, default=8765, help="Server dashboard port")
     args = parser.parse_args(argv)
     if args.ssh_port is not None and not 1 <= args.ssh_port <= 65535:
         parser.error("SSH port must be between 1 and 65535")
+    if not 1 <= args.dashboard_port <= 65535:
+        parser.error("Dashboard port must be between 1 and 65535")
+    if args.dashboard and args.setup:
+        parser.error("--setup installs Facebook login tools; use it without --dashboard")
     try:
-        connect(args.host, args.directory, args.setup, args.ssh_port, args.ssh_config)
+        connect(
+            args.host,
+            args.directory,
+            args.setup,
+            args.ssh_port,
+            args.ssh_config,
+            dashboard=args.dashboard,
+            dashboard_port=args.dashboard_port,
+        )
     except KeyboardInterrupt:
         parser.exit(130, "Login cancelled; the connection is closed.\n")
     except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:

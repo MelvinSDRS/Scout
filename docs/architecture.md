@@ -2,7 +2,8 @@
 
 Scout runs independently with a FastAPI dashboard, a single Playwright worker and SQLite
 state. Telegram is optional and outbound-only. It never calls `getUpdates` or changes another
-bot's commands. Dashboard API routes require a bearer token and reject cross-origin requests.
+bot's commands. Dashboard data routes require a browser session or API bearer token and reject cross-origin requests.
+One-use launcher links create revocable browser sessions without copying the API token.
 
 ## Regional definitions and attribution
 
