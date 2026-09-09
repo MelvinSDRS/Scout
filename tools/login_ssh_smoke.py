@@ -4,17 +4,23 @@ import asyncio
 import getpass
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from unittest.mock import patch
 
+import uvicorn
 from playwright.async_api import async_playwright
 
+from scout.api import create_app
 from scout.login import available_port, wait_port
 from scout.login_client import connect, handoff_path
+from scout.settings import Settings
+from scout.store import Store
 
 
 async def use_viewer(url, ready):
@@ -40,6 +46,64 @@ async def use_viewer(url, ready):
             )
         finally:
             await browser.close()
+
+
+async def use_dashboard(url):
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch()
+        try:
+            page = await browser.new_page()
+            await page.goto(url)
+            await page.locator("#app").wait_for(state="visible")
+            assert "#signin=" not in page.url
+            await page.reload()
+            await page.locator("#app").wait_for(state="visible")
+        finally:
+            await browser.close()
+
+
+def dashboard_smoke(state, checkout, ssh_config):
+    settings = Settings(state)
+    settings.prepare()
+    store = Store(state / "scout.sqlite3")
+    port = available_port(0)
+    server = uvicorn.Server(
+        uvicorn.Config(
+            create_app(store, settings, start_worker=False),
+            host="127.0.0.1",
+            port=port,
+            log_level="warning",
+        )
+    )
+    thread = threading.Thread(target=server.run)
+    thread.start()
+    try:
+        deadline = time.monotonic() + 10
+        while not server.started:
+            assert time.monotonic() < deadline, "Dashboard fixture did not start"
+            time.sleep(0.1)
+
+        def open_browser(url, new=0):
+            asyncio.run(use_dashboard(url))
+            raise KeyboardInterrupt  # User closes the dashboard tunnel after using it.
+
+        with patch("scout.login_client.webbrowser.open", open_browser):
+            try:
+                connect(
+                    "scout-test",
+                    str(checkout),
+                    ssh_config=ssh_config,
+                    dashboard=True,
+                    dashboard_port=port,
+                )
+            except KeyboardInterrupt:
+                pass
+            else:
+                raise AssertionError("Dashboard tunnel cancellation was not propagated")
+        print("SSH dashboard passed: automatic sign-in and remembered session across reload.")
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
 
 
 def main():
@@ -88,6 +152,13 @@ from scout.settings import Settings
 from scout.providers.facebook import Facebook
 import scout.login
 from scout.login_handoff import login_from_client
+import asyncio, signal
+Path({str(root / "remote.pid")!r}).write_text(str(os.getpid()))
+def dump_tasks(signum, frame):
+    with open({str(root / "tasks.log")!r}, 'w') as output:
+        for task in asyncio.all_tasks():
+            task.print_stack(file=output)
+signal.signal(signal.SIGUSR2, dump_tasks)
 os.environ['PLAYWRIGHT_BROWSERS_PATH'] = {str(project / "data/browsers")!r}
 class OfflineFacebook(Facebook):
     async def start(self, headed=False):
@@ -109,7 +180,12 @@ class OfflineFacebook(Facebook):
 scout.login.Facebook = OfflineFacebook
 settings = Settings(Path({str(state)!r}))
 settings.prepare()
-login_from_client(settings, sys.argv[sys.argv.index('--handoff') + 1])
+if sys.argv[1] == 'open':
+    from scout.dashboard import open_dashboard
+    from scout.store import Store
+    open_dashboard(Store(settings.data_dir / 'scout.sqlite3'), settings, handoff=True)
+else:
+    login_from_client(settings, sys.argv[sys.argv.index('--handoff') + 1])
 ''')
         executable.chmod(0o700)
         with (root / "sshd.log").open("w+") as log:
@@ -148,10 +224,15 @@ login_from_client(settings, sys.argv[sys.argv.index('--handoff') + 1])
                         raise AssertionError("Login cancellation was not propagated")
                 deadline = time.monotonic() + 15
                 while Path(handoff_path(identifier)).parent.exists():
-                    assert time.monotonic() < deadline, "Cancelled server viewer was left running"
+                    if time.monotonic() >= deadline:
+                        os.kill(int((root / "remote.pid").read_text()), signal.SIGUSR2)
+                        time.sleep(0.2)
+                        print((root / "tasks.log").read_text(), file=sys.stderr)
+                        raise AssertionError("Cancelled server viewer was left running")
                     time.sleep(0.1)
                 assert not list(state.glob("login-*/components.log"))
                 print("SSH cancellation passed: remote socket and display runtime removed.")
+                dashboard_smoke(state, checkout, ssh_config)
             except BaseException:
                 log.seek(0)
                 print(log.read(), file=sys.stderr)

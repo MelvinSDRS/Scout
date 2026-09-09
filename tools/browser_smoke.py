@@ -13,6 +13,7 @@ from PIL import Image
 from playwright.async_api import async_playwright
 
 from scout.api import create_app
+from scout.dashboard_auth import DashboardAuth
 from scout.image_filter import PhotoFilter
 from scout.models import Listing, SearchResult
 from scout.searches import Searches
@@ -26,9 +27,24 @@ async def exercise(settings, searches):
         page = await browser.new_page(viewport={"width": 1440, "height": 1100})
         errors = []
         page.on("pageerror", lambda exc: errors.append(str(exc)))
-        await page.goto("http://127.0.0.1:8766")
-        await page.locator("#token").fill(settings.api_token)
-        await page.get_by_role("button", name="Connect", exact=True).click()
+        auth = DashboardAuth(searches.store, settings)
+        ticket = auth.issue_ticket()
+        urls = []
+        page.on("request", lambda request: urls.append(request.url))
+        await page.goto("http://127.0.0.1:8766/#signin=" + ticket)
+        try:
+            await page.locator("#app").wait_for(state="visible", timeout=10000)
+        except Exception:
+            print(
+                "Dashboard sign-in failed:", await page.locator("#login-error").inner_text(), errors
+            )
+            raise
+        assert "#signin=" not in page.url
+        assert all(ticket not in url for url in urls)
+        cookies = await page.context.cookies()
+        session = next(cookie for cookie in cookies if cookie["name"] == auth.cookie_name)
+        assert session["httpOnly"] and session["expires"] > time.time() + 29 * 86400
+        await page.reload()
         await page.locator("#app").wait_for(state="visible")
         await page.screenshot(path="/tmp/scout-explore.png", full_page=True)
         await page.locator("#query").fill("Oakley Judge")
@@ -124,6 +140,17 @@ async def exercise(settings, searches):
         page.on("dialog", lambda d: d.accept())
         await page.get_by_role("button", name="Delete", exact=True).click()
         await page.locator(".watch-card").wait_for(state="detached")
+        await page.locator("#disconnect").click()
+        await page.locator("#login").wait_for(state="visible")
+        await page.reload()
+        assert await page.locator("#app").is_hidden()
+        assert not auth.valid_session(session["value"])
+        # Compatibility fallback is tucked away; the normal path above never needs a token.
+        await page.locator("#login details summary").click()
+        await page.locator("#token").fill(settings.api_token)
+        await page.get_by_role("button", name="Connect", exact=True).click()
+        await page.locator("#app").wait_for(state="visible")
+        assert await page.locator("#token").input_value() == ""
         assert not errors, errors
         await browser.close()
 

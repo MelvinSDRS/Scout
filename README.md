@@ -62,9 +62,27 @@ No configuration file is needed for the default local setup. To change settings 
 Telegram, copy `.env.example` to `.env` and edit it. Browser installation and login use the
 same configured data directory, including `SCOUT_DATA` in `.env`.
 
-Open [the local dashboard](http://127.0.0.1:8765). In another terminal, run `uv run scout token`
-and enter that access token. It stays in browser-tab memory. All `/api/` routes require it.
-Runtime data, tokens and browser credentials are stored in private `data/` by default.
+On a local desktop, `scout serve` opens the dashboard and signs you in automatically.
+To reopen a running dashboard, use:
+
+```bash
+uv run scout open
+```
+
+For a running server, use the laptop launcher instead:
+
+```bash
+python3 tools/login_remote.py user@server --dashboard
+```
+
+Both open a one-time sign-in link; **there is no token to copy**. Your browser stays signed in
+for 30 days, including across reloads and server restarts. **Sign out** revokes that browser's
+session. The SSH launcher also creates the dashboard tunnel; keep its terminal open while
+using it. Add `--directory /path/to/Scout` if the server checkout is not `~/Scout`.
+
+API scripts can still use `uv run scout token`; the dashboard's advanced token option is a
+fallback. Runtime state and sign-in credentials stay in private `data/`. See
+[dashboard access](docs/deployment.md#dashboard-access) for HTTPS proxies and recovery.
 
 Start in **Explore**, enter an item and select countries. **Refine search** supports required
 and excluded phrases, alternative phrase groups and per-currency price limits. Results

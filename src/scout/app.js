@@ -2,7 +2,7 @@
 const $ = (id) => document.getElementById(id);
 const countryNames = { US: "United States", CA: "Canada", FR: "France" };
 const flags = { US: "🇺🇸", CA: "🇨🇦", FR: "🇫🇷" };
-let token = "",
+let authenticated = false,
   current = null,
   country = null,
   displayLimit = 60,
@@ -21,13 +21,12 @@ async function api(path, options = {}) {
   const res = await fetch("/api" + path, {
     ...options,
     headers: {
-      Authorization: "Bearer " + token,
       "Content-Type": "application/json",
     },
   });
   const data = await res.json();
   if (!res.ok) {
-    if (res.status === 401 && token) {
+    if (res.status === 401 && authenticated) {
       lock();
     }
     throw new Error(
@@ -46,13 +45,20 @@ function view(name) {
     .forEach((b) => b.classList.toggle("active", b.dataset.view === name));
 }
 function lock() {
-  token = "";
+  authenticated = false;
   current = null;
   $("app").hidden = true;
   $("login").hidden = false;
   $("token").value = "";
 }
-$("disconnect").onclick = lock;
+$("disconnect").onclick = async () => {
+  try {
+    await api("/session", { method: "DELETE" });
+    lock();
+  } catch (err) {
+    notice(err.message);
+  }
+};
 document.querySelectorAll("[data-view]").forEach(
   (b) =>
     (b.onclick = () => {
@@ -64,19 +70,44 @@ $("new-search").onclick = () => {
   view("search");
   $("query").focus();
 };
+async function unlock() {
+  await refreshBasics();
+  authenticated = true;
+  $("token").value = "";
+  $("login").hidden = true;
+  $("app").hidden = false;
+  $("login-error").textContent = "";
+}
 $("login-form").onsubmit = async (e) => {
   e.preventDefault();
-  token = $("token").value.trim();
   try {
-    await refreshBasics();
-    $("token").value = "";
-    $("login").hidden = true;
-    $("app").hidden = false;
-    $("login-error").textContent = "";
+    await api("/session", {
+      method: "POST", body: JSON.stringify({ token: $("token").value.trim() }),
+    });
+    await unlock();
   } catch (err) {
     $("login-error").textContent = err.message;
+  } finally {
+    $("token").value = "";
   }
 };
+async function restoreSession() {
+  const ticket = new URLSearchParams(location.hash.slice(1)).get("signin");
+  if (ticket) history.replaceState(null, "", location.pathname + location.search);
+  let linkError = "";
+  if (ticket) {
+    try {
+      await api("/session", { method: "POST", body: JSON.stringify({ ticket }) });
+    } catch (err) {
+      linkError = err.message;
+    }
+  }
+  try {
+    await unlock();
+  } catch (err) {
+    if (ticket) $("login-error").textContent = linkError || err.message;
+  }
+}
 function phrases(id) {
   return $(id)
     .value.split(",")
@@ -497,7 +528,7 @@ $("watch-form").onsubmit = async (e) => {
 };
 let ticks = 0;
 setInterval(async () => {
-  if (!token || refreshing || document.hidden) return;
+  if (!authenticated || refreshing || document.hidden) return;
   refreshing = true;
   try {
     if (current?.status === "running") {
@@ -557,3 +588,5 @@ async function openPhotoReview(id, append = false) {
 }
 $("photo-review-more").onclick = () =>
   openPhotoReview(reviewWatch, true).catch((e) => notice(e.message));
+
+restoreSession();

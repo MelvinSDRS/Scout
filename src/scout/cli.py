@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import os
+import sys
 
 from .models import Watch
 from .settings import Settings
@@ -25,6 +26,10 @@ def main():
     delete.add_argument("id", type=int)
     serve = commands.add_parser("serve", help="Start local web controls and the worker")
     serve.add_argument("--port", type=int, default=8765)
+    serve.add_argument("--no-open", action="store_true", help="Do not open the desktop browser")
+    dashboard = commands.add_parser("open", help="Open the dashboard and sign in automatically")
+    dashboard.add_argument("--url", default="http://127.0.0.1:8765", help="Dashboard root URL")
+    dashboard.add_argument("--handoff", action="store_true", help=argparse.SUPPRESS)
     commands.add_parser("worker")
     commands.add_parser("once", help="Scan currently due regions and send pending alerts")
     commands.add_parser("status")
@@ -96,7 +101,19 @@ def main():
         elif args.command == "serve":
             from .server import serve
 
-            serve(store, settings, args.port)
+            serve(
+                store,
+                settings,
+                args.port,
+                open_browser=not args.no_open
+                and sys.stdout.isatty()
+                and bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+                and not os.environ.get("SSH_CONNECTION"),
+            )
+        elif args.command == "open":
+            from .dashboard import open_dashboard
+
+            open_dashboard(store, settings, args.url, handoff=args.handoff)
         elif args.command in ("worker", "once"):
             asyncio.run(run(store, settings, once=args.command == "once"))
         elif args.command == "test-notification":

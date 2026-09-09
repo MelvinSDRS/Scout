@@ -207,3 +207,32 @@ def test_setup_cli_loads_custom_data_directory_from_dotenv(tmp_path, monkeypatch
     main()
     assert installed == [(tmp_path / "custom-data", str(tmp_path / "custom-data/browsers"), True)]
     assert not (tmp_path / "data").exists()
+
+
+def test_cancellation_during_playwright_start_stops_the_driver(tmp_path, monkeypatch):
+    from scout.providers.facebook import Facebook
+
+    async def exercise():
+        started = asyncio.Event()
+        release = asyncio.Event()
+        runtime = SimpleNamespace(stop=AsyncMock())
+
+        async def start():
+            started.set()
+            await release.wait()
+            return runtime
+
+        monkeypatch.setattr(
+            "playwright.async_api.async_playwright", lambda: SimpleNamespace(start=start)
+        )
+        fb = Facebook(Settings(tmp_path))
+        task = asyncio.create_task(fb.start())
+        await started.wait()
+        task.cancel()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        runtime.stop.assert_awaited_once()
+        assert fb.playwright is None
+
+    asyncio.run(exercise())

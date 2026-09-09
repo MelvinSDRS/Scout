@@ -199,3 +199,72 @@ def test_service_restoration_survives_closed_terminal(tmp_path, monkeypatch):
     with pause_service():
         monkeypatch.setattr("builtins.print", Mock(side_effect=OSError("terminal closed")))
     assert actions == ["stop", "start"]
+
+
+def test_dashboard_protocol_hides_sign_in_code():
+    output = io.StringIO()
+    events = queue.Queue()
+    read_output(
+        io.StringIO(READY_PREFIX + json.dumps({"kind": "dashboard", "ticket": "x" * 43}) + "\n"),
+        events,
+        output,
+    )
+    assert events.get() == ("dashboard", "x" * 43)
+    assert output.getvalue() == ""
+
+
+def test_dashboard_remote_command_keeps_worker_running():
+    command = remote_command("Scout", "a" * 32, dashboard=True)
+    assert command.endswith("exec .venv/bin/scout open --handoff")
+    assert " login " not in command and "systemctl" not in command
+
+
+def test_sigterm_during_driver_start_is_cleaned_before_event_loop_exits(tmp_path, monkeypatch):
+    import asyncio
+    import os
+    import signal
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from scout.login_handoff import login_until_disconnect
+    from scout.providers.facebook import Facebook
+    from scout.settings import Settings
+
+    read_fd, write_fd = os.pipe()
+    monkeypatch.setattr("scout.login_handoff.sys.stdin", SimpleNamespace(fileno=lambda: read_fd))
+    previous = signal.getsignal(signal.SIGTERM)
+
+    async def exercise():
+        started, release = asyncio.Event(), asyncio.Event()
+        runtime = SimpleNamespace(stop=AsyncMock())
+
+        async def start():
+            started.set()
+            await release.wait()
+            return runtime
+
+        async def browser(settings):
+            fb = Facebook(settings)
+            try:
+                await fb.start()
+            finally:
+                await fb.close()
+
+        monkeypatch.setattr(
+            "playwright.async_api.async_playwright", lambda: SimpleNamespace(start=start)
+        )
+        monkeypatch.setattr("scout.login.browser_login", browser)
+        task = asyncio.create_task(login_until_disconnect(Settings(tmp_path)))
+        await started.wait()
+        os.kill(os.getpid(), signal.SIGTERM)
+        asyncio.get_running_loop().call_later(0.02, release.set)
+        with pytest.raises(RuntimeError, match="SSH disconnected"):
+            await asyncio.wait_for(task, timeout=2)
+        runtime.stop.assert_awaited_once()
+
+    try:
+        asyncio.run(exercise())
+        assert signal.getsignal(signal.SIGTERM) == previous
+    finally:
+        os.close(read_fd)
+        os.close(write_fd)

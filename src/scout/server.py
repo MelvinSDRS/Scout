@@ -1,6 +1,7 @@
 """Serve on explicit local interfaces without exposing a wildcard listener."""
 
 import socket
+import threading
 from contextlib import ExitStack
 
 import uvicorn
@@ -8,7 +9,7 @@ import uvicorn
 from .api import create_app
 
 
-def serve(store, settings, port):
+def serve(store, settings, port, *, open_browser=False):
     config = uvicorn.Config(
         create_app(store, settings),
         port=port,
@@ -24,4 +25,13 @@ def serve(store, settings, port):
             sock.bind((address, port))
             sock.listen(128)
             sockets.append(sock)
+        if open_browser:
+            from .dashboard import open_dashboard
+
+            opener = threading.Timer(
+                0.5, open_dashboard, args=(store, settings, f"http://127.0.0.1:{port}")
+            )
+            opener.daemon = True
+            opener.start()
+            stack.callback(opener.cancel)
         uvicorn.Server(config).run(sockets=sockets)

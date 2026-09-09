@@ -1,8 +1,14 @@
 # Security policy
 
 Scout is a single-operator, self-hosted application. Keep it on loopback or behind an
-operator-managed HTTPS proxy with token authentication. Treat the runtime directory as
+operator-managed HTTPS proxy with session/API authentication. Treat the runtime directory as
 sensitive: it contains browser login state, access tokens and listing history.
+
+Dashboard launchers issue five-minute, single-use sign-in links. The browser exchanges one
+for a revocable 30-day HttpOnly, SameSite=Strict cookie (Secure over HTTPS). Only keyed hashes
+of sign-in codes and sessions are stored in SQLite. Mutating cookie requests require a matching
+Origin; bearer API authentication remains available. Changing the API secret invalidates
+existing sessions and sign-in codes. Treat unused sign-in links and database backups as private.
 
 ## Reporting a vulnerability
 

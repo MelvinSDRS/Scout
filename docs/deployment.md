@@ -182,7 +182,61 @@ After success, use `uv run scout serve` for a foreground instance, or
 `systemctl --user start scout` for an installed service. Scout never starts a second worker
 automatically. Keep `data/`, `.env`, browser profiles and viewer passwords private.
 
+## Dashboard access
+
+Start Scout with `uv run scout serve`, or use the installed user service. On an interactive
+local desktop, `serve` opens the dashboard and signs you in automatically; `--no-open`
+disables browser launch. A service does not write sign-in links to its journal.
+
+For a running local dashboard:
+
+```bash
+uv run scout open
+```
+
+For a running server, on your own computer:
+
+```bash
+python3 tools/login_remote.py user@server --dashboard
+# Different checkout or dashboard port:
+python3 tools/login_remote.py my-server --directory /srv/Scout --dashboard --dashboard-port 8770
+```
+
+The launcher opens the tunnel and signs the browser in automatically. It leaves the worker
+running and keeps the connection open until you press Ctrl+C. It does not start a stopped
+server. Your normal SSH authentication still applies. No Facebook browser or viewer is
+started in dashboard mode.
+
+A one-time sign-in link is valid for five minutes. The browser exchanges it for an HttpOnly,
+SameSite=Strict session cookie lasting 30 days, then removes the sign-in code from the URL.
+The code is in the URL fragment, not HTTP requests or server access logs. Neither the API
+token nor the session credential is kept in JavaScript storage. HTTPS connections use Secure
+cookies. Bookmark the plain dashboard URL after signing in. Reopening a browser or restarting
+Scout does not require another token; **Sign out** revokes the session immediately. Other
+browsers keep their own sessions.
+
+If the browser cannot open automatically, the command prints a short-lived sign-in link.
+Treat unused links as private. For a custom local port or an existing HTTPS proxy, use:
+
+```bash
+uv run scout open --url http://127.0.0.1:8770
+uv run scout open --url https://scout.example.com
+```
+
+Run that command on the Scout host so it can read the same configuration and database as the
+service. From an SSH-only terminal the link can be opened on your computer through your
+existing proxy/tunnel; the `--dashboard` launcher automates this for loopback access.
+
+Expired or already-used links do not sign in a new browser. Run the launcher again to get a
+fresh link. Expired browser sessions also use the same command. API clients continue to send
+`Authorization: Bearer ...` using `uv run scout token`; an advanced token form remains in the
+sign-in page for recovery. Cookie-authenticated changes require a matching Origin header;
+bearer API clients do not need browser cookies. To revoke every browser session, rotate
+`SCOUT_API_TOKEN` (or replace `data/api-token` if generated) and restart Scout. Existing API
+clients must then use the new token as well.
+
 ## Remote dashboard and proxy
+
 
 For occasional remote access, tunnel the dashboard:
 
@@ -202,7 +256,7 @@ The proxy forwards to `127.0.0.1:8765` and preserves the external Host and HTTPS
 A proxy container may need an explicitly selected private bridge listener and trusted
 source address; adapt all three settings to your network. Do not use wildcard listeners,
 allowed hosts or trusted proxies. Disable caching for authenticated responses and retain
-Scout's token authentication. TLS termination and proxy administration are operator tasks.
+Scout's session and API authentication. TLS termination and proxy administration are operator tasks.
 
 ## State and backups
 
