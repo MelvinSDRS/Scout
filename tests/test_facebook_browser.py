@@ -87,7 +87,7 @@ addEventListener('scroll',()=>{
                     await request.fulfill(content_type="text/html", body=html)
 
             await fb.context.route("**/*", route)
-            result = await fb.search("Oakley Judge", "CA", REGIONS["CA"][0]["city"])
+            result = await fb._search("Oakley Judge", "CA", REGIONS["CA"][0]["city"])
             if empty:
                 assert result.listings == []
                 assert result.saturated is False
@@ -149,7 +149,7 @@ def test_cached_radius_change_reloads_to_verify_server_parameters(tmp_path, monk
                 await request.fulfill(content_type="text/html", body=html)
 
             await fb.context.route("**/*", route)
-            result = await fb.search("Oakley Judge", "CA", REGIONS["CA"][0]["city"])
+            result = await fb._search("Oakley Judge", "CA", REGIONS["CA"][0]["city"])
             assert len(navigations) == 2
             assert result.radius_km == 500
             assert result.listings == []

@@ -9,6 +9,12 @@ location filters or require a login checkpoint. Country tabs identify the search
 not a verified seller location. Alerts report newly discovered listings, not guaranteed
 publication times. See [architecture and limitations](docs/architecture.md).
 
+Before each regional scan, Scout saves your current Marketplace location and radius,
+then restores and verifies them when the scan ends, including after errors or cancellation.
+If restoration fails, the scan reports an error and keeps the original settings locally
+for recovery before another scan. If older scans already changed your preferences, set
+your home location and radius in Facebook once before starting the next scan.
+
 ## Requirements
 
 - Linux with Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).

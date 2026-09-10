@@ -1,6 +1,8 @@
 """Read rendered Marketplace search data; stop at login/checkpoint walls."""
 
+import asyncio
 import json
+import logging
 import re
 from importlib.resources import files
 from urllib.parse import parse_qs, urlencode
@@ -13,6 +15,7 @@ from .facebook_data import (
     extract_listings,
     more_results,
 )
+from .facebook_location import HomeLocation, capture_home, restore_home, save_home
 
 REGIONS = json.loads(files("scout").joinpath("regions.json").read_text())
 
@@ -50,12 +53,11 @@ class Facebook:
         self.playwright = None
         self.context = None
         self.browser = None
+        self._search_lock = asyncio.Lock()
 
     async def start(self, headed=False):
         if self.context:
             return
-        import asyncio
-
         from playwright.async_api import async_playwright
 
         startup = asyncio.create_task(async_playwright().start())
@@ -88,12 +90,62 @@ class Facebook:
         self.context = self.playwright = self.browser = None
 
     async def search(self, query, country, anchor):
+        # All regions share account preferences, including when attached through CDP.
+        async with self._search_lock:
+            await self.start()
+            page = await self.context.new_page()
+            snapshot = self.settings.data_dir / "facebook-home.json"
+            try:
+                if snapshot.exists():
+                    home = HomeLocation(**json.loads(snapshot.read_text(encoding="utf-8")))
+                    await self._restore_home(page, home, snapshot)
+                home = await capture_home(page, check_access)
+                save_home(snapshot, home)
+                scan_error = None
+                try:
+                    return await self._search(query, country, anchor)
+                except BaseException as exc:
+                    scan_error = exc
+                    raise
+                finally:
+                    cleanup = asyncio.create_task(self._restore_home(page, home, snapshot))
+                    try:
+                        await asyncio.shield(cleanup)
+                    except asyncio.CancelledError as cancelled:
+                        try:
+                            await cleanup
+                        except Exception as exc:
+                            cancelled.add_note(str(exc))
+                            raise cancelled from exc
+                        raise
+                    except Exception as exc:
+                        if isinstance(scan_error, (asyncio.CancelledError, AccessBlocked)):
+                            scan_error.add_note(str(exc))
+                            raise scan_error from exc
+                        raise
+            finally:
+                await page.close()
+
+    async def _restore_home(self, page, home, snapshot):
+        try:
+            async with asyncio.timeout(90):
+                await restore_home(page, home, check_access)
+            snapshot.unlink()
+        except Exception as exc:
+            logging.getLogger(__name__).error(
+                "Facebook home restoration failed; original settings retained for retry"
+            )
+            error_type = AccessBlocked if isinstance(exc, AccessBlocked) else RuntimeError
+            raise error_type(
+                "Could not restore the original Facebook location and radius; "
+                "saved settings retained for retry"
+            ) from exc
+
+    async def _search(self, query, country, anchor):
         await self.start()
         page = await self.context.new_page()
         documents = []
         requests = []
-        import asyncio
-
         pending = set()
 
         async def capture(response):
