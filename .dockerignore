@@ -1,0 +1,11 @@
+*
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!src
+!src/**
+!docs
+!docs/nationwide-LICENSE.txt

@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 
 import pytest
 
@@ -17,6 +18,13 @@ def test_facebook_access_block_pauses_remaining_regions(tmp_path, monkeypatch):
     class BlockedFacebook:
         def __init__(self, settings):
             pass
+
+        async def recover_home(self):
+            pass
+
+        @asynccontextmanager
+        async def scan_session(self):
+            yield self
 
         async def search(self, query, country, anchor):
             calls.append(("facebook", country))

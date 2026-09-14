@@ -1,3 +1,5 @@
+import pytest
+
 from scout.settings import Settings
 
 
@@ -78,3 +80,17 @@ def test_custom_image_reference_root(tmp_path, monkeypatch):
     monkeypatch.delenv("SCOUT_IMAGE_REFERENCES")
     settings = Settings.load()
     assert settings.reference_root == settings.data_dir / "image-references"
+
+
+def test_facebook_home_restore_defaults_true_and_validates(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("SCOUT_FACEBOOK_RESTORE_HOME", raising=False)
+    assert Settings.load().facebook_restore_home is True
+
+    (tmp_path / ".env").write_text("SCOUT_FACEBOOK_RESTORE_HOME=false\n")
+    assert Settings.load().facebook_restore_home is False
+    (tmp_path / ".env").write_text("SCOUT_FACEBOOK_RESTORE_HOME=1\n")
+    assert Settings.load().facebook_restore_home is True
+    (tmp_path / ".env").write_text("SCOUT_FACEBOOK_RESTORE_HOME=maybe\n")
+    with pytest.raises(ValueError, match="SCOUT_FACEBOOK_RESTORE_HOME"):
+        Settings.load()

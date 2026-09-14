@@ -11,7 +11,10 @@ Restart=on-failure
 RestartSec=15
 UMask=0077
 NoNewPrivileges=true
-TimeoutStopSec=30
+# Keep Chromium alive while the worker restores Marketplace preferences.
+KillMode=mixed
+# Allow the bounded 90-second Marketplace home restoration to finish on shutdown.
+TimeoutStopSec=120
 
 [Install]
 WantedBy=default.target

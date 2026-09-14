@@ -56,6 +56,6 @@ Private runtime files are excluded by an explicit source-distribution allowlist 
 Do not add blanket secret-scan exclusions or accept a generated baseline without review.
 False-positive fixture exceptions must be narrow and explain why the value is synthetic.
 
-The repository is [MelvinSDRS/Scout](https://github.com/MelvinSDRS/Scout).
+The repository is [MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts](https://github.com/MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts).
 Verify any registry package name before publishing there; installing from this source checkout
 or its wheel does not reserve a public package name.

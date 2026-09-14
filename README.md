@@ -1,120 +1,147 @@
-# Scout
+<div align="center">
 
-Scout is a self-hosted Facebook Marketplace explorer with saved searches, scheduled
-watches and optional Telegram alerts. Search regional samples in the USA, Canada and
-mainland France; browse photos, filter titles/prices, and turn a search into a watch.
+# Scout — Facebook Marketplace Wide Search & Alerts
 
-Scout is an early-stage project. Facebook can change its layout, limit results, ignore
-location filters or require a login checkpoint. Country tabs identify the search area,
-not a verified seller location. Alerts report newly discovered listings, not guaranteed
-publication times. See [architecture and limitations](docs/architecture.md).
+**Find the Marketplace listings you care about. Let Scout keep looking.**
 
-Before each regional scan, Scout saves your current Marketplace location and radius,
-then restores and verifies them when the scan ends, including after errors or cancellation.
-If restoration fails, the scan reports an error and keeps the original settings locally
-for recovery before another scan. If older scans already changed your preferences, set
-your home location and radius in Facebook once before starting the next scan.
+A self-hosted dashboard for Facebook Marketplace searches, saved watches and Telegram alerts.
 
-## Requirements
+[Get started](#get-started) · [Account & VPN](#choose-your-facebook-account-and-network) · [Server setup](docs/deployment.md) · [Docker + Gluetun](docs/docker.md)
 
-- Linux with Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).
-- Chromium installed through Playwright (commands below).
-- A Facebook session with access to Marketplace and permission for the intended collection.
-- Optional: your own Telegram bot token and destination.
+</div>
 
-Linux is the supported platform. Worker locking, resource limits and the optional headless
-login viewer use Unix/Linux facilities. The separate laptop launcher uses Python and OpenSSH;
-its end-to-end tests run on Linux. Windows and macOS execution is not currently validated.
+![Scout dashboard showing a demonstration search with product images, prices and regional results](docs/images/scout-dashboard.png)
 
-## Quick start
+*The real Scout interface with fictional demo listings and original illustrations. No personal account data or seller photos are shown.*
 
-From a checkout or extracted source release:
+## What you can do
+
+- **Explore across borders.** Search regional areas in the USA, Canada and mainland France from one place.
+- **Find the right version.** Refine titles with required/excluded phrases and set a budget in each currency.
+- **Save a watch.** Turn a search into scheduled checks without re-entering your filters.
+- **Get Telegram alerts.** Receive newly discovered matches without keeping the dashboard open.
+- **Check the photos.** Add optional reference images to help filter visually similar items and review uncertain matches.
+- **Keep your setup local.** Your browser session, search history and database live on your own server.
+
+Scout is an early-stage project. Results are regional samples, not an exhaustive country-wide inventory, and Facebook can interrupt access with login checkpoints.
+
+## Get started
+
+You need **Linux**, **Python 3.12+**, [uv](https://docs.astral.sh/uv/) and a Facebook account with Marketplace access. Telegram is optional.
+
+### 1. Install Scout
 
 ```bash
+git clone https://github.com/MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts.git Scout
 cd Scout
 uv sync --frozen
+```
+
+### 2. Connect Facebook
+
+```bash
 uv run scout login --setup
+```
+
+Sign in in the browser, complete any verification, then open **Marketplace**. Scout detects the login and saves the session automatically—no cookie copying or Enter confirmation. Setup installs Chromium and may request your sudo password for system dependencies.
+
+**Installing on a server without a screen?** Follow the [remote login guide](docs/deployment.md#headless-facebook-login). **Using Docker + Gluetun?** Use the [container login procedure](docs/docker.md#facebook-login-through-the-vpn) so Facebook stays on the VPN connection.
+
+### 3. Open your dashboard
+
+```bash
 uv run scout serve
 ```
 
-`login --setup` installs Chromium and its system dependencies, then opens the login browser.
-On a Debian/Ubuntu server without a display it also installs a temporary browser viewer and
-prints SSH tunnel instructions. Installation may ask for your sudo password. Subsequent
-logins only need `uv run scout login`.
+On a local desktop, Scout opens the dashboard and signs you in. To reopen it later, run `uv run scout open`. For a remote server, use the [dashboard launcher](docs/deployment.md#dashboard-access).
 
-Sign into Facebook, complete any checkpoints yourself, and open Marketplace. Scout detects
-completion automatically and checks that the saved session works headlessly before exiting.
-You do not need to press Enter or copy cookies. Stop a running Scout worker before logging in.
-See [login and troubleshooting](docs/deployment.md#facebook-login) for remote servers,
-preinstalled dependencies and session checks.
-
-**Using a headless server?** From the checkout on your own computer, run:
+No `.env` file is needed for the default local setup. When you want to configure Telegram or other options:
 
 ```bash
-python3 tools/login_remote.py user@server
+cp .env.example .env
 ```
 
-This assumes Scout is in `~/Scout` on the server; use `--directory /path/to/Scout` otherwise.
-The launcher installs missing server prerequisites, creates the SSH tunnel, and opens the
-login viewer with its temporary password supplied automatically. Just complete Facebook login.
-A running Scout user service for that checkout is paused and restored automatically.
+Edit `.env`, then restart Scout to apply your changes.
 
-Your computer only needs Python 3.10+, OpenSSH and a browser; no local Scout installation or
-Playwright download is needed. You can also copy the standalone
-[login launcher](src/scout/login_client.py) to your computer and run
-`python3 login_client.py user@server`. See [the remote guide](docs/deployment.md#headless-facebook-login).
+## Your first watch
 
-No configuration file is needed for the default local setup. To change settings or enable
-Telegram, copy `.env.example` to `.env` and edit it. Browser installation and login use the
-same configured data directory, including `SCOUT_DATA` in `.env`.
+1. Open **Explore**, enter an item such as `vintage camera`, and choose your countries.
+2. Use **Refine search** to add a budget, exclude phrases such as `parts only`, or narrow down the model.
+3. Browse the results, then select **Create watch** to keep checking with those filters.
+4. Manage your saved searches and review uncertain photo matches in **My watches**.
 
-On a local desktop, `scout serve` opens the dashboard and signs you in automatically.
-To reopen a running dashboard, use:
-
-```bash
-uv run scout open
-```
-
-For a running server, use the laptop launcher instead:
-
-```bash
-python3 tools/login_remote.py user@server --dashboard
-```
-
-Both open a one-time sign-in link; **there is no token to copy**. Your browser stays signed in
-for 30 days, including across reloads and server restarts. **Sign out** revokes that browser's
-session. The SSH launcher also creates the dashboard tunnel; keep its terminal open while
-using it. Add `--directory /path/to/Scout` if the server checkout is not `~/Scout`.
-
-API scripts can still use `uv run scout token`; the dashboard's advanced token option is a
-fallback. Runtime state and sign-in credentials stay in private `data/`. See
-[dashboard access](docs/deployment.md#dashboard-access) for HTTPS proxies and recovery.
-
-Start in **Explore**, enter an item and select countries. **Refine search** supports required
-and excluded phrases, alternative phrase groups and per-currency price limits. Results
-arrive by region. **Include broader suggestions** shows collected items that failed title
-filters; **Load more results** paginates the stored results.
-
-**Create watch** preserves the search filters and baselines existing matches so they are not
-sent as newly found alerts. Manage watches and review uncertain photos under **My watches**.
-Only one interactive search runs at a time. Interactive and scheduled checks share a worker.
+Creating a watch from a search treats its existing matches as already seen, so they are not sent as new alerts. Price limits are per currency; Scout does not silently convert USD, CAD or EUR.
 
 ## Telegram alerts
 
-Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env`. An optional
-`TELEGRAM_MESSAGE_THREAD_ID` routes messages to a forum topic. Use values for a bot and
-chat you control; the bot needs permission to post there. Restart the service after changes.
+Add your bot token and chat ID to `.env`:
+
+```dotenv
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_CHAT_ID=your_chat_id
+# Optional: send into a Telegram forum topic
+# TELEGRAM_MESSAGE_THREAD_ID=your_topic_id
+```
+
+Restart Scout, then send one test message:
 
 ```bash
 uv run scout test-notification
 ```
 
-That command sends one setup message. Scout uses outbound `sendMessage` only and never
-polls Telegram updates. No other project is required. If you intentionally share an existing
-bot configuration, set `SCOUT_TELEGRAM_ENV_FILE` to its env-file path; only token and chat
-are read. The older `HOMEBOT_ENV_FILE` name is accepted as an explicit compatibility alias.
+Use a bot and destination you control. Scout only sends notifications; it does not read your Telegram messages or poll for bot updates. An alert means **newly discovered by that watch**, not necessarily newly posted on Facebook.
 
-## CLI
+## Choose your Facebook account and network
+
+**Prefer a dedicated account you do not rely on for everyday Facebook use**, where permitted by Meta's account rules. Keeping Scout separate avoids changing the Marketplace location you use personally and reduces your reliance on an account used for automation. A disposable or “throwaway” account is not protection against restrictions; it can still face verification or suspension. Meta's [account rules](https://www.facebook.com/help/203498356357867) also restrict maintaining multiple personal accounts.
+
+**A VPN is recommended if you want Scout's traffic to use a separate network exit from your home connection.** The [Docker + Gluetun setup](docs/docker.md) runs both Scout and its Facebook browser through an existing VPN tunnel. Log in through that same container setup.
+
+A VPN **does not prevent Facebook bans** or make automation undetectable. Neither a dedicated account nor a VPN removes account-level restrictions or the need for permission: [Meta states that unauthorized automated collection violates its terms](https://about.fb.com/news/2021/04/how-we-combat-scraping/). Scout does not bypass checkpoints or CAPTCHAs.
+
+### Keep your original Marketplace location
+
+By default, Scout saves your Marketplace **location and radius** before a scan batch and restores them afterward, including after errors or cancellation. While a scan is running, opening Marketplace yourself can still show the region currently being searched.
+
+```dotenv
+SCOUT_FACEBOOK_RESTORE_HOME=true
+```
+
+If restoration fails, Scout keeps the saved settings, pauses new scans and retries. The dashboard shows the recovery issue. If an earlier scan already changed your location, set your preferred location and radius in Facebook before starting a new batch.
+
+**Using a dedicated account?** You can skip this step entirely:
+
+```dotenv
+SCOUT_FACEBOOK_RESTORE_HOME=false
+```
+
+Scout then leaves Marketplace at the last searched location and skips location capture, restoration and recovery. For a regular installation, edit `.env` and restart Scout. For Docker, edit `.env.docker` and run `docker compose up -d scout` to recreate it with the new setting. Keep restoration enabled if you use the same account manually.
+
+## Run it on your server
+
+| Setup | Guide |
+| --- | --- |
+| Linux service that runs in the background | [systemd installation](docs/deployment.md#user-service) |
+| Docker with an existing Gluetun VPN | [Docker deployment](docs/docker.md) |
+| Facebook login from your laptop | [Remote login](docs/deployment.md#headless-facebook-login) |
+| Private dashboard access and HTTPS | [Dashboard access](docs/deployment.md#dashboard-access) |
+| Reference photos for visual matching | [Photo profiles](docs/photo-filter.md) |
+
+The included Docker Compose file is an example for an existing Gluetun/reverse-proxy network. Adapt its network addresses and dashboard hostname to your server; it is not a one-command VPN installer.
+
+Keep `data/`, `.env` files, browser profiles and backups private. The dashboard binds to loopback by default; do not publish the login viewer or a bare HTTP API on the internet.
+
+## A few things to know
+
+- **Coverage is approximate.** Scout checks 24 regional points: 13 in the USA, 9 in Canada and 2 in mainland France. Country tabs show the search area, not a verified seller location.
+- **Scans take time.** Searches share one browser worker. `SCAN_DELAY_SECONDS` defaults to 30; the supported minimum is 5. Loading, photo checks and access errors also affect duration, so there is no guaranteed scan time.
+- **Fewer alerts do not always mean a problem.** Seen items are deduplicated, filters remove mismatches, and Facebook may return fewer results. Check dashboard status when a watch looks quiet.
+- **Login can expire.** Stop the worker and reconnect when Facebook requests verification. See [login troubleshooting](docs/deployment.md#facebook-login).
+
+See [architecture and limitations](docs/architecture.md) for coverage, recovery and delivery details.
+
+<details>
+<summary><strong>Prefer the command line?</strong></summary>
 
 ```bash
 uv run scout add "vintage camera" --countries US CA FR --interval 60
@@ -125,40 +152,14 @@ uv run scout probe "vintage camera" --country CA
 uv run scout delete 1
 ```
 
-Examples are not created automatically. `probe` reads one region without saving results or
-sending alerts. By default every query word must occur in the title. Unknown prices are
-excluded when price limits are active; currencies are never converted implicitly.
+`probe` checks one region without saving results or sending alerts. Photo profiles are optional and use your own reference images; no seller photos are bundled with Scout.
 
-## Photo checks
+</details>
 
-Optional photo profiles use your own reference JPEGs; no product or seller images are
-shipped with Scout. Only valid configured profiles appear in the dashboard. See
-[photo profiles](docs/photo-filter.md) for setup, cache behavior and limitations.
+## Contributing & license
 
-## Deployment and maintenance
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [validation guide](docs/validation.md).
 
-See [deployment](docs/deployment.md) for systemd, headless login, reverse proxies and backups.
-Defaults bind only to loopback. Do not expose a bare HTTP API or a remote login viewer publicly.
-
-```bash
-uv run python tools/install_service.py
-systemctl --user daemon-reload
-systemctl --user enable --now scout
-```
-
-The installer generates paths for your checkout; moving it requires regenerating the unit
-and virtual environment. The database is `data/scout.sqlite3`. Never publish `data/`, `.env`,
-browser profiles, screenshots, response archives or backups.
-
-## Development and licensing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and
-[validation](docs/validation.md). CI runs tests, browser checks, secret scanning and release
-archive checks without production credentials. It does not publish releases automatically.
-
-Scout's original code is licensed under [MIT](LICENSE). Regional definitions come from
-[facebook-marketplace-nationwide](https://github.com/gmoz22/facebook-marketplace-nationwide);
-its [MIT notice](docs/nationwide-LICENSE.txt) is included in source and wheel distributions.
-Dependencies keep their own licenses. Facebook access remains subject to its terms;
-[Meta states](https://about.fb.com/news/2021/04/how-we-combat-scraping/) that collecting data
-with automation without its permission violates those terms.
+Scout is [MIT licensed](LICENSE). Regional definitions come from
+[facebook-marketplace-nationwide](https://github.com/gmoz22/facebook-marketplace-nationwide),
+with its [MIT notice](docs/nationwide-LICENSE.txt) included. Scout is independent of Facebook and Meta.

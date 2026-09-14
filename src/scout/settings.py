@@ -12,6 +12,7 @@ class Settings:
     telegram_chat: str = ""
     api_token: str = ""
     facebook_cdp: str = ""
+    facebook_restore_home: bool = True
     image_references: Path | None = None
     scan_delay: int = 30
     telegram_thread: int | None = None
@@ -31,6 +32,14 @@ class Settings:
                 value.strip() for value in env.get(key, default).split(",") if value.strip()
             )
 
+        def boolean(key, default):
+            value = str(env.get(key, default)).strip().casefold()
+            if value in ("1", "true"):
+                return True
+            if value in ("0", "false"):
+                return False
+            raise ValueError(f"{key} must be true or false")
+
         return cls(
             bind_hosts=entries("SCOUT_BIND_HOSTS", "127.0.0.1"),
             allowed_hosts=entries("SCOUT_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver"),
@@ -40,10 +49,11 @@ class Settings:
             telegram_chat=env.get("TELEGRAM_CHAT_ID") or shared.get("TELEGRAM_CHAT_ID") or "",
             api_token=env.get("SCOUT_API_TOKEN", ""),
             facebook_cdp=env.get("FACEBOOK_CDP_URL", ""),
+            facebook_restore_home=boolean("SCOUT_FACEBOOK_RESTORE_HOME", "true"),
             image_references=Path(env["SCOUT_IMAGE_REFERENCES"]).expanduser().resolve()
             if env.get("SCOUT_IMAGE_REFERENCES")
             else None,
-            scan_delay=max(10, int(env.get("SCAN_DELAY_SECONDS", "30"))),
+            scan_delay=max(5, int(env.get("SCAN_DELAY_SECONDS", "30"))),
             telegram_thread=int(env["TELEGRAM_MESSAGE_THREAD_ID"])
             if env.get("TELEGRAM_MESSAGE_THREAD_ID")
             else None,

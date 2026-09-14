@@ -311,8 +311,9 @@ async function refreshBasics() {
       ),
     );
   $("health-cards").replaceChildren();
+  const recoveringHome = h.home_recovery?.pending;
   for (const [title, detail] of [
-    [h.worker_running ? "Online" : "Offline", "Marketplace search worker"],
+    [h.worker_running ? (recoveringHome ? "Paused" : "Online") : "Offline", "Marketplace search worker"],
     [
       h.telegram_configured ? "Connected" : "Setup needed",
       "Telegram notifications",
@@ -320,6 +321,17 @@ async function refreshBasics() {
   ]) {
     const c = node("div", undefined, "health-card");
     c.append(node("b", title), node("span", detail));
+    $("health-cards").append(c);
+  }
+  if (recoveringHome) {
+    const c = node("div", undefined, "health-card");
+    const retry = h.home_recovery.retry_at
+      ? ` Next attempt: ${new Date(h.home_recovery.retry_at * 1000).toLocaleTimeString()}.`
+      : "";
+    c.append(
+      node("b", "Restoring your Marketplace location"),
+      node("span", `${h.home_recovery.error || "Checking your saved location."}${retry} Searches wait until this is resolved.`),
+    );
     $("health-cards").append(c);
   }
   $("scan-status").replaceChildren();

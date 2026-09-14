@@ -22,9 +22,9 @@ dependencies = [
     "opencv-python-headless>=4.11,<5",
 ]
 [project.urls]
-Repository = "https://github.com/MelvinSDRS/Scout"
-Issues = "https://github.com/MelvinSDRS/Scout/issues"
-Documentation = "https://github.com/MelvinSDRS/Scout#readme"
+Repository = "https://github.com/MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts"
+Issues = "https://github.com/MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts/issues"
+Documentation = "https://github.com/MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts#readme"
 
 [project.scripts]
 scout = "scout.cli:main"
@@ -48,10 +48,13 @@ select = ["E4", "E7", "E9", "F", "I"]
 
 # Explicit release contents keep operator state and local workspace files out of archives.
 [tool.hatch.build.targets.sdist]
+# Demo artwork belongs to the GitHub README, not the runtime/source distribution.
+exclude = ["/docs/images"]
 include = [
     "/src", "/tests", "/tools", "/deploy", "/docs", "/.github",
     "/README.md", "/LICENSE", "/CONTRIBUTING.md", "/SECURITY.md",
     "/.env.example", "/.gitignore", "/pyproject.toml", "/uv.lock",
+    "/Dockerfile", "/compose.yaml", "/.dockerignore",
 ]
 
 [tool.hatch.build.targets.wheel]

@@ -167,6 +167,25 @@ class Store:
 
     def health(self):
         with self.connect() as db:
+            recovery = {
+                "pending": False,
+                "error": None,
+                "retry_at": None,
+                "last_attempt": None,
+            }
+            recovery_rows = {
+                row["key"]: row["value"]
+                for row in db.execute("SELECT key,value FROM meta WHERE key LIKE 'home_recovery_%'")
+            }
+            recovery["pending"] = recovery_rows.get("home_recovery_pending") == "1"
+            recovery["error"] = recovery_rows.get("home_recovery_error") or None
+            for field in ("retry_at", "last_attempt"):
+                value = recovery_rows.get(f"home_recovery_{field}")
+                if value is not None:
+                    try:
+                        recovery[field] = float(value)
+                    except ValueError:
+                        recovery[field] = None
             return {
                 "scans": [
                     dict(r)
@@ -186,7 +205,48 @@ class Store:
                 "worker_heartbeat": (
                     db.execute("SELECT value FROM meta WHERE key='heartbeat'").fetchone() or [None]
                 )[0],
+                "home_recovery": recovery,
             }
+
+    def home_recovery(self):
+        """Return persisted Facebook home restoration state for worker/API status."""
+        return self.health()["home_recovery"]
+
+    def home_recovery_attempt(self, now):
+        with self.connect() as db:
+            db.executemany(
+                "INSERT OR REPLACE INTO meta VALUES (?,?)",
+                [
+                    ("home_recovery_pending", "1"),
+                    ("home_recovery_last_attempt", str(now)),
+                    ("home_recovery_error", ""),
+                    ("home_recovery_retry_at", "0"),
+                ],
+            )
+
+    def home_recovery_failed(self, error, retry_at):
+        with self.connect() as db:
+            db.executemany(
+                "INSERT OR REPLACE INTO meta VALUES (?,?)",
+                [
+                    ("home_recovery_pending", "1"),
+                    ("home_recovery_error", error),
+                    ("home_recovery_retry_at", str(retry_at)),
+                    ("home_recovery_last_attempt", str(time.time())),
+                ],
+            )
+
+    def home_recovery_clear(self):
+        with self.connect() as db:
+            db.executemany(
+                "DELETE FROM meta WHERE key=?",
+                [
+                    ("home_recovery_pending",),
+                    ("home_recovery_error",),
+                    ("home_recovery_retry_at",),
+                    ("home_recovery_last_attempt",),
+                ],
+            )
 
     def heartbeat(self):
         with self.connect() as db:

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+from contextlib import asynccontextmanager
 
 import httpx
 import pytest
@@ -198,6 +199,13 @@ def test_worker_shares_provider_and_fairly_serves_watches(searches, tmp_path, mo
     class Provider:
         def __init__(self, settings):
             pass
+
+        async def recover_home(self):
+            pass
+
+        @asynccontextmanager
+        async def scan_session(self):
+            yield self
 
         async def search(self, query, country, anchor):
             calls.append(query)

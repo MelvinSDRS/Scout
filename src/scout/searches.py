@@ -84,11 +84,24 @@ class Searches:
         with self.store.connect() as db:
             db.execute("UPDATE search_jobs SET state='queued' WHERE state='running'")
 
-    def claim(self):
+    def pending(self):
+        with self.store.connect() as db:
+            return [
+                dict(row)
+                for row in db.execute(
+                    "SELECT search_jobs.*,spec FROM search_jobs JOIN searches ON searches.id=search_id "
+                    "WHERE state='queued' ORDER BY created_at,position"
+                )
+            ]
+
+    def claim(self, job_id=None):
         with self.store.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
-                "SELECT search_jobs.*,spec FROM search_jobs JOIN searches ON searches.id=search_id WHERE state='queued' ORDER BY created_at,position LIMIT 1"
+                "SELECT search_jobs.*,spec FROM search_jobs JOIN searches ON searches.id=search_id "
+                "WHERE state='queued' AND (? IS NULL OR search_jobs.id=?) "
+                "ORDER BY created_at,position LIMIT 1",
+                (job_id, job_id),
             ).fetchone()
             if not row:
                 return None
@@ -128,17 +141,19 @@ class Searches:
                 ),
             )
 
-    def fail(self, job, error, source_blocked=False):
+    def fail(self, job, error, source_blocked=False, completed=False):
         with self.store.connect() as db:
             if source_blocked:
                 db.execute(
-                    "UPDATE search_jobs SET state='failed',error=?,finished_at=? WHERE search_id=? AND source=? AND state IN ('queued','running')",
-                    (error, time.time(), job["search_id"], job["source"]),
+                    "UPDATE search_jobs SET state='failed',error=?,finished_at=? WHERE search_id=? "
+                    "AND source=? AND (state IN ('queued','running') OR (? AND id=? AND state='done'))",
+                    (error, time.time(), job["search_id"], job["source"], completed, job["id"]),
                 )
             else:
                 db.execute(
-                    "UPDATE search_jobs SET state='failed',error=?,finished_at=? WHERE id=? AND state='running'",
-                    (error, time.time(), job["id"]),
+                    "UPDATE search_jobs SET state='failed',error=?,finished_at=? WHERE id=? "
+                    "AND (state='running' OR (? AND state='done'))",
+                    (error, time.time(), job["id"], completed),
                 )
 
     def cancel(self, ident):

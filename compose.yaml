@@ -1,0 +1,66 @@
+services:
+  scout:
+    image: scout-local:gluetun
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.docker
+    environment:
+      SCOUT_DATA: /data
+      SCOUT_BIND_HOSTS: 0.0.0.0
+      SCOUT_ALLOWED_HOSTS: localhost,127.0.0.1,scout.example.com
+      SCOUT_TRUSTED_PROXIES: 172.29.0.250
+      FACEBOOK_CDP_URL: ""
+    network_mode: "container:${SCOUT_GLUETUN_CONTAINER:-gluetun}"
+    user: "1000:1000"
+    read_only: true
+    init: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 256m
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m,uid=1000,gid=1000,mode=0700
+      - /home/scout:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=0700
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    stop_grace_period: 120s
+
+  gateway:
+    image: nginx:stable-alpine
+    user: "101:101"
+    read_only: true
+    init: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:8765:8765"
+      - "172.28.0.1:8765:8765"
+    volumes:
+      - ./deploy/nginx-scout.conf:/etc/nginx/nginx.conf:ro
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m,uid=101,gid=101,mode=1777
+      - /var/cache/nginx:rw,nosuid,nodev,size=64m,uid=101,gid=101,mode=0755
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget -q --header='Host: localhost' -O /dev/null http://127.0.0.1:8765/ || exit 1"]
+    networks:
+      nginx_default:
+        ipv4_address: 172.28.0.250
+        gw_priority: 1
+      torrent_default:
+        ipv4_address: 172.29.0.250
+    restart: unless-stopped
+
+networks:
+  nginx_default:
+    external: true
+    name: nginx_default
+  torrent_default:
+    external: true
+    name: torrent_default
