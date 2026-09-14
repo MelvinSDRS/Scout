@@ -1,5 +1,11 @@
 # Docker deployment
 
+All hostnames and network addresses below are examples. Keep your real deployment
+in an ignored `compose.private.yaml`, and set `COMPOSE_FILE=compose.private.yaml`
+in your private `.env`. Keep host-specific Nginx configuration under private
+`data/` and point that Compose file at it. Never commit these private files.
+
+
 This deployment keeps Scout and its Facebook browser inside the existing healthy
 `gluetun` container's network namespace. `gluetun` must already be connected to
 the ProtonVPN Canada route and to the external `torrent_default` network. Scout

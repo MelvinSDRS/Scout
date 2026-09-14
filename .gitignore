@@ -15,3 +15,6 @@ build/
 .vscode/
 .agents/
 .codex/
+
+# Host-specific deployment configuration
+compose.private.yaml
