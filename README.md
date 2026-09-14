@@ -12,8 +12,6 @@ A self-hosted dashboard for Facebook Marketplace searches, saved watches and Tel
 
 ![Scout dashboard showing a demonstration search with product images, prices and regional results](docs/images/scout-dashboard.png)
 
-*The real Scout interface with fictional demo listings and original illustrations. No personal account data or seller photos are shown.*
-
 ## What you can do
 
 - **Explore across borders.** Search regional areas in the USA, Canada and mainland France from one place.
@@ -32,7 +30,7 @@ You need **Linux**, **Python 3.12+**, [uv](https://docs.astral.sh/uv/) and a Fac
 ### 1. Install Scout
 
 ```bash
-git clone https://github.com/MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts.git Scout
+git clone https://github.com/MelvinSDRS/Scout.git
 cd Scout
 uv sync --frozen
 ```

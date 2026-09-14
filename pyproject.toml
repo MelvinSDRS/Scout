@@ -22,9 +22,9 @@ dependencies = [
     "opencv-python-headless>=4.11,<5",
 ]
 [project.urls]
-Repository = "https://github.com/MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts"
-Issues = "https://github.com/MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts/issues"
-Documentation = "https://github.com/MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts#readme"
+Repository = "https://github.com/MelvinSDRS/Scout"
+Issues = "https://github.com/MelvinSDRS/Scout/issues"
+Documentation = "https://github.com/MelvinSDRS/Scout#readme"
 
 [project.scripts]
 scout = "scout.cli:main"

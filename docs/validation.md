@@ -22,7 +22,7 @@ paths. Photo profiles require operator-supplied valid references; unavailable pr
 be selected for new watches. The existing runtime can retain its own private configuration,
 reference images and database while the source becomes portable.
 
-Hosted CI runs in [MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts](https://github.com/MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts). Repository visibility,
+Hosted CI runs in [MelvinSDRS/Scout](https://github.com/MelvinSDRS/Scout). Repository visibility,
 private-reporting configuration and registry publication are separate administrative actions.
 
 ## Local publication-preparation checks — 2026-09-08
@@ -42,7 +42,7 @@ network is disabled; one documented exception covers synthetic env fixture field
 
 ## Hosted validation — 2026-09-09
 
-[CI run 34309483861](https://github.com/MelvinSDRS/Scout-Facebook-Marketplace-Wide-Search-and-Alerts/actions/runs/34309483861) passed on
+[CI run 34309483861](https://github.com/MelvinSDRS/Scout/actions/runs/34309483861) passed on
 Ubuntu 24.04 for initial commit `8ec74d233faa2da3e846027c7d4c67f9af9930bd`. It verified the
 locked dependency installation, Chromium/browser checks, lint/format, JavaScript syntax,
 regression tests, source secret scan, full-history Gitleaks scan, wheel/source builds, release
@@ -57,7 +57,7 @@ secrets or vulnerabilities have been ruled out.
 
 ## README demonstration screenshot
 
-Regenerate the README image from the real dashboard and a temporary demo database:
+Generate the underlying dashboard capture from the real interface and a temporary demo database:
 
 ```bash
 uv run python tools/readme_screenshot.py
@@ -70,7 +70,9 @@ requests, and never starts the Facebook worker or sends Telegram messages. The
 output is `docs/images/scout-dashboard.png`; set `SCOUT_SCREENSHOT_OUTPUT` to
 choose another path. Its demo database is removed afterward.
 
-The reviewed demo image is intended for the GitHub README. `docs/images` is
+The README uses an operator-supplied, framed version of this capture. The script
+regenerates the unframed dashboard; use `SCOUT_SCREENSHOT_OUTPUT` to avoid
+overwriting the curated image. The reviewed image is intended for the GitHub README. `docs/images` is
 excluded from source distributions, preserving the release check that rejects
 bundled screenshots and reference photos. Production screenshots and account
 state must remain private.
