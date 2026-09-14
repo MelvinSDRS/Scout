@@ -70,7 +70,8 @@ requests, and never starts the Facebook worker or sends Telegram messages. The
 output is `docs/images/scout-dashboard.png`; set `SCOUT_SCREENSHOT_OUTPUT` to
 choose another path. Its demo database is removed afterward.
 
-The README uses an operator-supplied, framed version of this capture. The script
+The README uses an operator-supplied version at
+`docs/images/scout-dashboard-rounded.png`. The script
 regenerates the unframed dashboard; use `SCOUT_SCREENSHOT_OUTPUT` to avoid
 overwriting the curated image. The reviewed image is intended for the GitHub README. `docs/images` is
 excluded from source distributions, preserving the release check that rejects

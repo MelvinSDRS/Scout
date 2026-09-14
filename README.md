@@ -10,7 +10,7 @@ A self-hosted dashboard for Facebook Marketplace searches, saved watches and Tel
 
 </div>
 
-![Scout dashboard showing a demonstration search with product images, prices and regional results](docs/images/scout-dashboard.png)
+![Scout dashboard showing a demonstration search with product images, prices and regional results](docs/images/scout-dashboard-rounded.png)
 
 ## What you can do
 
