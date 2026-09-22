@@ -7,7 +7,10 @@ from decimal import Decimal
 
 from .facebook_data import objects
 
-LOCATION_BUTTON = re.compile(r"Dans un rayon de|Within .* (?:km|miles)|within .* (?:km|miles)")
+LOCATION_BUTTON = re.compile(
+    r"(?:Dans un rayon de|Within)\s+\d+(?:[.,]\d+)?\s*(?:km|kilom[èe]tres?|mi(?:les?)?)\b",
+    re.IGNORECASE,
+)
 APPLY_BUTTON = re.compile(r"^(Appliquer|Apply)$")
 PARTNER_DIALOG_TITLE = re.compile(
     r"(?:Explorez plus d['’]articles|Explore more (?:items|listings))", re.IGNORECASE
@@ -43,7 +46,9 @@ class HomeLocation:
 
 
 async def open_location(page):
-    await page.get_by_text(LOCATION_BUTTON).first.click(timeout=10000)
+    # Empty-result messages also mention a radius; only the location button opens
+    # the controls. US pages abbreviate miles as "mi" in this button.
+    await page.get_by_role("button", name=LOCATION_BUTTON).click(timeout=10000)
     dialog = (
         page.get_by_role("dialog")
         .filter(has=page.locator('input:not([type]), input[type="text"], input[type="search"]'))

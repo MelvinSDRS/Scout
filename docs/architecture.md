@@ -38,6 +38,37 @@ ignores an in-flight result. Restart recovery requeues unfinished jobs. Watch co
 transactional and idempotent: capacity validation, watch creation, matched-ID baselines and
 completed scan times are committed together. Pending regions retain first-pass behavior.
 
+## Local price checks
+
+A search with `spec.pricing` creates one city/radius job in the same queue. It cannot become
+a notification watch. The worker enables sold/pending record collection only for these
+checks; ordinary searches and watches retain their active-listing behavior. The pricing
+endpoint uses all matching records, independent of display pagination, and computes paid,
+active asking-price statistics in the selected country's currency without conversion.
+The median is the suggested price with at least three comparables; quartiles are alternative
+starting prices, not sale-speed predictions. Outliers remain visible in the minimum/mean/maximum.
+
+`price_observations` stores the latest listing payload and observed active/sold timestamps,
+keyed by query/filter/area scope and provider listing ID. Recording observations and completing
+the job share the search-result transaction; cancelled in-flight results cannot update history.
+Old observations expire after 90 days without a sighting, independently of recent-search
+retention. Reports include sold sightings from the last 90 days. A missing listing does not
+change its status. An explicitly active relisting starts a new lifecycle. Repeated scans are
+manual; there is no background sold-item tracker. The graph pairs the last observed active
+asking price with elapsed time from first active sighting to first sold sighting. Neither
+transaction prices nor actual listing/sale dates are inferred.
+
+Local pricing applies a strict distance filter after title matching. A listing is usable only
+when its provider coordinates yield a finite nonnegative distance from the verified search
+center and that distance is no greater than the requested radius. Missing, malformed and
+outside-radius distances are reported separately for current matches and do not enter active
+statistics, comparables or newly recorded history. Existing observations are filtered again at
+report time, so legacy payloads without a distance cannot create an estimate; the report asks
+the operator to rescan the area. Search cards often omit seller coordinates, so the provider
+checks at most 24 matching active or sold listing detail pages within a 60-second budget.
+Distances are approximate great-circle values; detail lookups that fail or return no coordinates
+remain unknown and are excluded.
+
 ## Capacity and coverage
 
 Watches and interactive searches each have a local 100-region/hour admission budget.

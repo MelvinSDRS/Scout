@@ -12,14 +12,12 @@
       <div class="brand">
         <span class="logo">s</span> scout<span class="beta">PRIVATE</span>
       </div>
-      <h1>Your next find<br />is out there.</h1>
-      <p>Search across borders. Keep an eye on the things you love.</p>
-      <p>Open Scout from your computer to sign in automatically:</p>
+      <h1>Welcome to Scout.</h1>
+      <p>Sign in from your computer:</p>
       <pre><code>uv run scout open</code></pre>
-      <p class="fine">Using a server? Run the desktop launcher with <code>--dashboard</code>.
-        Your browser stays signed in for 30 days.</p>
+      <p class="fine">Using a server? Run the desktop launcher with <code>--dashboard</code>.</p>
       <details>
-        <summary>Advanced: use an access token</summary>
+        <summary>Use an access token</summary>
         <form id="login-form">
           <label for="token">Access token</label>
           <input id="token" type="password" required autocomplete="off" />
@@ -30,35 +28,37 @@
     </section>
     <div id="app" hidden>
       <aside>
-        <a class="brand" href="#search"
+        <a class="brand" href="/explore"
           ><span class="logo">s</span> scout<span class="beta">PRIVATE</span></a
         >
-        <div class="nav-label">YOUR MARKETPLACE</div>
         <nav aria-label="Main navigation">
           <button data-view="search" class="active">
-            <span>⌕</span> Explore</button
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></svg>
+            <span class="nav-label">Explore</span></button
+          ><button data-view="pricing">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.5 3H5a2 2 0 0 0-2 2v7.5a2 2 0 0 0 .6 1.4l7.5 7.5a2 2 0 0 0 2.8 0l7.5-7.5a2 2 0 0 0 0-2.8l-7.5-7.5A2 2 0 0 0 12.5 3Z"/><circle cx="7.5" cy="7.5" r="1"/></svg>
+            <span class="nav-label">Sell price</span></button
           ><button data-view="watches">
-            <span>◉</span> My watches <b id="watch-count">0</b></button
-          ><button data-view="status"><span>≋</span> Service status</button>
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+            <span class="nav-label">Watches</span><b id="watch-count">0</b></button
+          ><button data-view="status">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12h4l3-6 4.5 12 3-6h4.5"/></svg>
+            <span class="nav-label">Status</span></button>
         </nav>
         <div class="sidebar-bottom">
           <div class="connection">
             <i id="worker-dot"></i><span id="worker-label">Connecting</span>
           </div>
-          <p>A wider search.<br />A little less scrolling.</p>
         </div>
       </aside>
       <main>
         <header>
-          <span>YOUR PERSONAL FINDER</span
-          ><button id="disconnect" class="quiet">Sign out</button>
+          <button id="disconnect" class="quiet">Sign out</button>
         </header>
         <div id="notice" role="status" hidden></div>
         <section id="view-search">
           <div class="hero">
-            <div class="eyebrow">GOOD FINDS HAVE NO BORDERS</div>
-            <h1>Find it beyond your city<span>.</span></h1>
-            <p>One search. Three countries. Your next great find.</p>
+            <h1>Explore<span>.</span></h1>
           </div>
           <form id="search-form" class="search-panel">
             <div class="search-bar">
@@ -67,45 +67,69 @@
                 >What are you looking for?</label
               ><input
                 id="query"
+                type="search"
+                autocomplete="off"
+                data-1p-ignore="true"
+                data-op-ignore="true"
+                data-lpignore="true"
+                data-bwignore="true"
                 minlength="2"
                 maxlength="200"
                 required
-                placeholder="What are you looking for? Try Oakley Judge"
+                placeholder="What are you looking for?"
               /><button class="primary" id="search-submit">
-                Search Marketplace <span>↗</span>
+                Search <span>↗</span>
               </button>
             </div>
             <div class="search-options">
               <div class="country-picks">
                 <span class="subtle">Search in</span
                 ><label class="chip"
-                  ><input type="checkbox" name="country" value="US" checked />🇺🇸
+                  ><input type="checkbox" name="country" value="US"
+                    data-1p-ignore="true" data-op-ignore="true"
+                    data-lpignore="true" data-bwignore="true" checked />🇺🇸
                   United States</label
                 ><label class="chip"
-                  ><input type="checkbox" name="country" value="CA" checked />🇨🇦
+                  ><input type="checkbox" name="country" value="CA"
+                    data-1p-ignore="true" data-op-ignore="true"
+                    data-lpignore="true" data-bwignore="true" checked />🇨🇦
                   Canada</label
                 ><label class="chip"
-                  ><input type="checkbox" name="country" value="FR" checked />🇫🇷
+                  ><input type="checkbox" name="country" value="FR"
+                    data-1p-ignore="true" data-op-ignore="true"
+                    data-lpignore="true" data-bwignore="true" checked />🇫🇷
                   France</label
                 >
               </div>
               <details id="filters">
-                <summary>Refine search <span>＋</span></summary>
+                <summary>Filters</summary>
                 <div class="filter-grid">
                   <label
                     >Exclude words or phrases<input
                       id="exclude"
+                      autocomplete="off"
+                      data-1p-ignore="true"
+                      data-op-ignore="true"
+                      data-lpignore="true"
+                      data-bwignore="true"
                       placeholder="glasses, sunglasses, lunettes"
                     /><small>Separate phrases with commas.</small></label
                   ><label
                     >Required words or phrases<input
                       id="include"
+                      autocomplete="off"
+                      data-1p-ignore="true"
+                      data-op-ignore="true"
+                      data-lpignore="true"
+                      data-bwignore="true"
                       placeholder="Defaults to every word in your search"
                     /><small
                       >Overrides the default title matching.</small
                     ></label
                   ><label id="photo-profile-field" hidden
-                    >Notification photo check<select id="image-profile">
+                    >Notification photo check<select id="image-profile"
+                      data-1p-ignore="true" data-op-ignore="true"
+                      data-lpignore="true" data-bwignore="true">
                       <option value="">Title filters only</option>
 </select
                     ><small
@@ -116,6 +140,11 @@
                   <label
                     >Alternative title words<textarea
                       id="include-any"
+                      autocomplete="off"
+                      data-1p-ignore="true"
+                      data-op-ignore="true"
+                      data-lpignore="true"
+                      data-bwignore="true"
                       rows="3"
                       placeholder="spider-man, spiderman&#10;backpack, back pack, sac à dos"
                     ></textarea
@@ -129,6 +158,11 @@
                     >Maximum USD<input
                       id="price-USD"
                       type="number"
+                      autocomplete="off"
+                      data-1p-ignore="true"
+                      data-op-ignore="true"
+                      data-lpignore="true"
+                      data-bwignore="true"
                       min="0"
                       step="0.01"
                       placeholder="No limit" /></label
@@ -136,6 +170,11 @@
                     >Maximum CAD<input
                       id="price-CAD"
                       type="number"
+                      autocomplete="off"
+                      data-1p-ignore="true"
+                      data-op-ignore="true"
+                      data-lpignore="true"
+                      data-bwignore="true"
                       min="0"
                       step="0.01"
                       placeholder="No limit" /></label
@@ -143,6 +182,11 @@
                     >Maximum EUR<input
                       id="price-EUR"
                       type="number"
+                      autocomplete="off"
+                      data-1p-ignore="true"
+                      data-op-ignore="true"
+                      data-lpignore="true"
+                      data-bwignore="true"
                       min="0"
                       step="0.01"
                       placeholder="No limit" /></label
@@ -160,28 +204,12 @@
             <div id="recent"></div>
           </div>
           <section id="welcome" class="welcome">
-            <div class="map-art" aria-hidden="true">
-              <span>🇺🇸</span><span>🇨🇦</span><span>🇫🇷</span>
-              <div class="map-caption">
-                LOCAL LISTINGS. WIDER POSSIBILITIES.
-              </div>
-            </div>
-            <h2>Start with something worth finding.</h2>
-            <p>
-              We check regional Marketplace searches and bring the results
-              together.<br />Like your search? Turn it into a watch and get
-              notified in Telegram.
-            </p>
-            <div class="steps">
-              <span><b>01</b> Search across countries</span
-              ><span><b>02</b> Explore local listings</span
-              ><span><b>03</b> Watch for new matches</span>
-            </div>
+            <h2>Find something you love.</h2>
+            <p>Search across countries. Save a watch for Telegram alerts.</p>
           </section>
           <section id="results" hidden>
             <div class="results-heading">
               <div>
-                <div class="eyebrow">YOUR SEARCH</div>
                 <h2 id="result-title"></h2>
                 <p id="result-summary" class="subtle"></p>
               </div>
@@ -194,8 +222,7 @@
             </div>
             <div class="progress"><div id="progress-fill"></div></div>
             <div class="progress-caption">
-              <span id="progress-text" aria-live="polite"></span
-              ><span>Results appear as each region finishes</span>
+              <span id="progress-text" aria-live="polite"></span>
             </div>
             <div
               id="country-tabs"
@@ -206,33 +233,174 @@
             <div class="results-toolbar">
               <span id="listing-count"></span
               ><label class="switch"
-                ><input id="suggestions" type="checkbox" /> Include broader
-                suggestions</label
+                ><input id="suggestions" type="checkbox"
+                  data-1p-ignore="true" data-op-ignore="true"
+                  data-lpignore="true" data-bwignore="true" /> Broader suggestions</label
               >
             </div>
-            <p class="fine">
-              Title matches use your search and filters. Suggestions can include
-              unrelated items from Facebook. Country tabs group searches by
-              area; Facebook can include shipping suggestions from other
-              countries. Check each seller’s location. These results are a
-              regional sample, not every listing in a country.
-            </p>
             <div id="listing-grid" class="listing-grid"></div>
             <div id="empty-results" class="empty" hidden></div>
             <button id="load-more" class="secondary" hidden>
-              Load more results
+              Load more
             </button>
             <details class="coverage">
-              <summary>Regional coverage &amp; search details</summary>
+              <summary>Search details</summary>
+              <p class="fine">Results are a regional sample. Facebook may include shipping
+                suggestions from other countries; check each seller’s location.
+                Broader suggestions may not match your title filters.</p>
               <div id="region-list"></div>
             </details>
           </section>
         </section>
+        <section id="view-pricing" hidden>
+          <div class="hero">
+            <h1>Sell price<span>.</span></h1>
+            <p>Find a starting price from local listings.</p>
+          </div>
+          <form id="pricing-form" class="search-panel pricing-panel">
+            <div class="search-bar">
+              <span aria-hidden="true">⌕</span
+              ><label class="sr-only" for="pricing-query">What are you selling?</label
+              ><input
+                id="pricing-query"
+                name="product-search"
+                type="search"
+                autocomplete="off"
+                data-1p-ignore="true"
+                data-op-ignore="true"
+                data-lpignore="true"
+                data-bwignore="true"
+                minlength="2"
+                maxlength="200"
+                required
+                placeholder="What are you selling?"
+              /><button class="primary" id="pricing-submit">
+                Check price <span>↗</span>
+              </button>
+            </div>
+            <div class="pricing-fields">
+              <label
+                >City
+                <input
+                  id="pricing-city"
+                  name="marketplace-city-search"
+                  type="search"
+                  required
+                  maxlength="120"
+                  list="pricing-city-options"
+                  placeholder="Search or enter any city"
+                  autocomplete="off"
+                  data-1p-ignore="true"
+                  data-op-ignore="true"
+                  data-lpignore="true"
+                  data-bwignore="true"
+                />
+              </label>
+              <label
+                >Country
+                <select id="pricing-country" required
+                  data-1p-ignore="true" data-op-ignore="true"
+                  data-lpignore="true" data-bwignore="true">
+                  <option value="CA">🇨🇦 Canada</option>
+                  <option value="US">🇺🇸 United States</option>
+                  <option value="FR">🇫🇷 France</option>
+                </select>
+              </label>
+              <label
+                >Radius
+                <span class="input-with-suffix"
+                  ><input id="pricing-radius" type="number" autocomplete="off"
+                    data-1p-ignore="true" data-op-ignore="true"
+                    data-lpignore="true" data-bwignore="true"
+                    min="1" max="805" step="1" value="20" required /><span>km</span></span
+                >
+              </label>
+            </div>
+            <datalist id="pricing-city-options"></datalist>
+            <details id="pricing-filters">
+              <summary>Filters &amp; location help</summary>
+              <p class="fine">Choose a suggested city or type another Marketplace city name or ID.
+                Country sets the currency; confirm the city in the report. Radius: 1–805 km.</p>
+              <div class="filter-grid">
+                <label
+                  >Exclude words or phrases<input
+                    id="pricing-exclude"
+                    autocomplete="off"
+                    data-1p-ignore="true"
+                    data-op-ignore="true"
+                    data-lpignore="true"
+                    data-bwignore="true"
+                    placeholder="glasses, damaged"
+                  /><small>Separate phrases with commas.</small></label
+                ><label
+                  >Required words or phrases<input
+                    id="pricing-include"
+                    autocomplete="off"
+                    data-1p-ignore="true"
+                    data-op-ignore="true"
+                    data-lpignore="true"
+                    data-bwignore="true"
+                    placeholder="Defaults to every word in your search"
+                  /><small>Overrides the default title matching.</small></label
+              </div>
+            </details>
+          </form>
+          <div class="recent-line pricing-recent-line">
+            <span class="eyebrow">RECENT PRICE CHECKS</span>
+            <div id="pricing-recent"></div>
+          </div>
+          <div id="pricing-state" class="pricing-state" role="status" hidden></div>
+          <section id="pricing-results" hidden>
+            <div class="results-heading">
+              <div>
+                <h2 id="pricing-result-title"></h2>
+                <p id="pricing-result-summary" class="subtle"></p>
+              </div>
+              <div class="actions">
+                <button id="cancel-pricing" class="quiet">Stop check</button
+                ><button id="rerun-pricing" class="secondary">Scan again</button>
+              </div>
+            </div>
+            <div class="progress"><div id="pricing-progress-fill"></div></div>
+            <div class="progress-caption">
+              <span id="pricing-progress-text" aria-live="polite"></span>
+            </div>
+            <div id="pricing-report" hidden>
+              <div id="pricing-cards" class="pricing-cards"></div>
+              <p class="fine">Asking prices only.</p>
+              <div class="pricing-charts">
+                <section class="chart-card">
+                  <h3>Price range</h3>
+                  <div id="pricing-histogram" class="histogram" role="img" aria-label="Active listing price histogram"></div>
+                </section>
+                <section class="chart-card">
+                  <h3>Price &amp; time to sold</h3>
+                  <div id="pricing-speed" class="speed-chart" role="img" aria-label="Price &amp; time to sold chart"></div>
+                  <p class="fine">Days from first seen to marked sold; not exact time on market.</p>
+                </section>
+              </div>
+              <section class="pricing-comparables">
+                <h3>Comparable listings</h3>
+                <p id="pricing-comparables-note" class="fine"></p>
+                <div id="pricing-items" class="listing-grid"></div>
+                <div id="pricing-empty-items" class="empty" hidden></div>
+              </section>
+              <section id="pricing-sold-section" class="pricing-comparables" hidden>
+                <h3>Local history</h3>
+                <p class="fine">Marked sold on Marketplace. Prices shown are last asking prices.</p>
+                <div id="pricing-sold-items" class="listing-grid"></div>
+              </section>
+              <details class="report-details">
+                <summary>Estimate details</summary>
+                <p id="pricing-basis" class="fine"></p>
+                <div id="pricing-warnings" class="pricing-warnings" hidden></div>
+              </details>
+            </div>
+          </section>
+        </section>
         <section id="view-watches" hidden>
           <div class="hero">
-            <div class="eyebrow">LET THE FINDS COME TO YOU</div>
-            <h1>My watches<span>.</span></h1>
-            <p>Saved searches, quietly checking for your next match.</p>
+            <h1>Watches<span>.</span></h1>
           </div>
           <div class="info-strip">
             ↗ New matches go to
@@ -244,9 +412,7 @@
           <section id="photo-review" hidden>
             <h2>Photos to review</h2>
             <p class="fine">
-              These candidates were not confidently matched to the reference.
-              They are not confirmed rejections. Review entries are limited to
-              the latest 2,000 photo checks per watch.
+              Uncertain photo matches. Showing the latest 2,000 checks per watch.
             </p>
             <div id="photo-review-grid" class="listing-grid"></div>
             <button id="photo-review-more" class="secondary" hidden>
@@ -254,43 +420,33 @@
             </button>
           </section>
           <button class="primary" id="new-search">
-            Explore a new search ↗
+            New search ↗
           </button>
         </section>
         <section id="view-status" hidden>
           <div class="hero">
-            <div class="eyebrow">BEHIND THE SEARCH</div>
-            <h1>Service status<span>.</span></h1>
-            <p>Connection health and the latest scheduled checks.</p>
+            <h1>Status<span>.</span></h1>
           </div>
           <div id="health-cards" class="health-cards"></div>
-          <p class="fine">
-            Facebook can cap or broaden results and change the available radius.
-            A completed check does not guarantee full country coverage.
-          </p>
           <div id="scan-status"></div>
         </section>
-        <footer>
-          SCOUT
-          <span
-            >Made for the find. Facebook Marketplace · USA / Canada /
-            France</span
-          >
-        </footer>
       </main>
     </div>
     <dialog id="watch-dialog">
       <form id="watch-form">
-        <div class="eyebrow">KEEP AN EYE ON IT</div>
-        <h2>Turn this search into a watch.</h2>
+        <h2>Create watch</h2>
         <p>
-          Get Telegram notifications when a new matching listing is found.
-          Matches already shown here won't be sent again.
+          Get new matches on Telegram. Listings already shown won’t be sent again.
         </p>
         <label
-          >Watch name<input id="watch-name" required maxlength="100" /></label
+          >Watch name<input id="watch-name" autocomplete="off"
+            data-1p-ignore="true" data-op-ignore="true"
+            data-lpignore="true" data-bwignore="true"
+            required maxlength="100" /></label
         ><label
-          >Check every<select id="watch-interval">
+          >Check every<select id="watch-interval"
+            data-1p-ignore="true" data-op-ignore="true"
+            data-lpignore="true" data-bwignore="true">
             <option value="30">30 minutes</option>
             <option value="60" selected>1 hour</option>
             <option value="180">3 hours</option>
@@ -298,10 +454,11 @@
             <option value="1440">24 hours</option>
           </select></label
         >
-        <p class="fine">
-          Regions still unchecked may produce a few initial match alerts. Timing
-          depends on the number of searches in progress.
-        </p>
+        <details>
+          <summary>Alert timing</summary>
+          <p class="fine">Unchecked regions may send initial alerts. Timing depends
+            on other searches in progress.</p>
+        </details>
         <p id="watch-error" role="alert"></p>
         <div class="actions">
           <button type="button" id="close-dialog" class="quiet">Cancel</button

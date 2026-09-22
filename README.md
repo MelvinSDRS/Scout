@@ -17,6 +17,7 @@ A self-hosted dashboard for Facebook Marketplace searches, saved watches and Tel
 - **Explore across borders.** Search regional areas in the USA, Canada and mainland France from one place.
 - **Find the right version.** Refine titles with required/excluded phrases and set a budget in each currency.
 - **Save a watch.** Turn a search into scheduled checks without re-entering your filters.
+- **Price something to sell.** Compare asking prices around a selected Marketplace city, see a price distribution and get a suggested starting price.
 - **Get Telegram alerts.** Receive newly discovered matches without keeping the dashboard open.
 - **Check the photos.** Add optional reference images to help filter visually similar items and review uncertain matches.
 - **Keep your setup local.** Your browser session, search history and database live on your own server.
@@ -69,6 +70,45 @@ Edit `.env`, then restart Scout to apply your changes.
 4. Manage your saved searches and review uncertain photo matches in **My watches**.
 
 Creating a watch from a search treats its existing matches as already seen, so they are not sent as new alerts. Price limits are per currency; Scout does not silently convert USD, CAD or EUR.
+
+## How much should I sell it for?
+
+Open **Sell price**, enter the product/model, and choose a city from the searchable suggestions
+or type a city that is not listed. Selecting a suggestion sets its country; a city you type
+uses the country selector. The radius starts at 20 km and can be changed before scanning.
+For a custom city, you can also use the city slug or numeric ID from its Marketplace URL
+(for example, `montreal` from `facebook.com/marketplace/montreal/`). Review the matching
+listings and use required/excluded phrases to separate accessories, different models or conditions.
+The report shows Facebook's applied city name and stops if its city identity cannot be verified.
+Use a numeric city ID for ambiguous names. The country selector determines the comparison
+currency; it does not constrain Facebook's city route or verify seller locations.
+
+Scout shows minimum, average and maximum **asking prices**, a distribution graph and a
+suggestion based on the median. The lower and upper quartiles offer competitive and patient
+starting points. Suggestions need at least three usable active matches. Unknown currencies,
+invalid/zero prices and pending or sold listings are excluded from the active estimate;
+currencies are never converted. Condition and authenticity are not verified, and a suggested
+price does not guarantee a sale or predict sale speed.
+
+Listings explicitly marked sold in returned search data appear separately. Scout retains
+observations for the same product, filters and area for 90 days. Use **Scan again** to collect
+more observations: a listing seen active and later sold can appear on the price-versus-time
+graph. Time means **first active sighting to first sold sighting**, not the actual time on
+market. The plotted price is its last observed active asking price, not a confirmed sale price.
+Listings already sold on first sighting have no duration; missing listings are never assumed
+sold. This is opportunistic observation, not a complete sold-item archive or automatic tracking.
+
+Price checks share the normal scan queue and hourly budget, restore your Marketplace location
+when restoration is enabled, and do not send Telegram alerts. Facebook may broaden the search
+or apply a different radius; the report shows coverage warnings. Check each seller's location.
+Scout includes a listing only when its provider coordinates produce a finite distance from the
+verified search center and that distance is within the requested radius. Listings outside the
+radius or without verified coordinates are excluded from the estimate and sold history, with
+separate counts shown in the report. Older saved results without distances must be rescanned
+before they can contribute to a local estimate. Search cards often omit seller coordinates, so
+Scout checks at most 24 matching active or sold listing detail pages within a 60-second budget.
+The resulting great-circle distances are approximate; failed or unreturned detail lookups remain
+unknown and stay excluded.
 
 ## Telegram alerts
 

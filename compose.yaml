@@ -26,6 +26,7 @@ services:
       - /home/scout:rw,nosuid,nodev,size=64m,uid=1000,gid=1000,mode=0700
     volumes:
       - ./data:/data
+      - ./.deploy/src:/opt/scout/src:ro
     restart: unless-stopped
     stop_grace_period: 120s
 

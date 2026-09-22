@@ -231,7 +231,18 @@ async def run_batch(store, settings, searches, photos, provider, jobs):
                     search_started = time.monotonic()
                     try:
                         async with asyncio.timeout(180):
-                            result = await session.search(spec.query, job["country"], job["anchor"])
+                            options = (
+                                {
+                                    "radius_km": spec.pricing.radius_km,
+                                    "include_sold": True,
+                                    "pricing_spec": spec,
+                                }
+                                if spec.pricing
+                                else {}
+                            )
+                            result = await session.search(
+                                spec.query, job["country"], job["anchor"], **options
+                            )
                     finally:
                         stats["search_elapsed"] += time.monotonic() - search_started
                     if "search_id" in job:

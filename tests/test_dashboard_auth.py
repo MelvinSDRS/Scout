@@ -47,6 +47,16 @@ def test_one_time_link_creates_remembered_session(setup):
     )  # Invalid link doesn't revoke a valid session.
 
 
+def test_dashboard_sections_support_direct_urls(setup):
+    _, _, _, client = setup
+    home = client.get("/").text
+    for path in ("/explore", "/sell-price", "/watches", "/status"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.text == home
+    assert client.get("/missing-section").status_code == 404
+
+
 def test_ticket_consumption_is_atomic(setup):
     _, _, auth, _ = setup
     ticket = auth.issue_ticket()
