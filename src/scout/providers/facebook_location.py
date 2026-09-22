@@ -67,7 +67,9 @@ async def configure_partner_selection(page):
     dialog with both known partner markers is actionable; an unknown dialog is
     left untouched and reported as an error rather than receiving generic clicks.
     """
-    dialogs = page.get_by_role("dialog")
+    # Keep indices stable if an unrelated dialog appears or disappears during
+    # the scan; visible-only role locators change their nth targets in that case.
+    dialogs = page.get_by_role("dialog", include_hidden=True)
     candidates = []
     for index in range(await dialogs.count()):
         dialog = dialogs.nth(index)
