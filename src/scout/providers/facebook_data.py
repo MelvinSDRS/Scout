@@ -2,6 +2,7 @@
 
 import re
 
+from ..geography import coordinate_pair, distance_km
 from ..models import Listing
 
 
@@ -34,6 +35,38 @@ def applied_radius(documents):
     return radii[-1] if radii else None
 
 
+def applied_search_center(documents, radius):
+    centers = {
+        point
+        for obj in objects(documents)
+        if obj.get("filter_radius_km") == radius
+        and (
+            point := coordinate_pair(
+                obj.get("filter_location_latitude"), obj.get("filter_location_longitude")
+            )
+        )
+        is not None
+    }
+    return next(iter(centers)) if len(centers) == 1 else None
+
+
+def listing_coordinates(documents, listing_id):
+    # Route props can carry this listing's ID but the BUYER'S search location.
+    # Only listing records with a title own seller/listing location coordinates.
+    points = set()
+    for obj in objects(documents):
+        if str(obj.get("id")) != listing_id or not isinstance(
+            obj.get("marketplace_listing_title"), str
+        ):
+            continue
+        location = obj.get("location")
+        if isinstance(location, dict):
+            point = coordinate_pair(location.get("latitude"), location.get("longitude"))
+            if point is not None:
+                points.add(point)
+    return next(iter(points)) if len(points) == 1 else None
+
+
 def price_currency(price, default=None):
     if price.get("currency"):
         return price["currency"]
@@ -50,7 +83,7 @@ def price_currency(price, default=None):
     return default
 
 
-def extract_listings(documents, country, scoped=False):
+def extract_listings(documents, country, scoped=False, include_sold=False, center=None):
     currencies = [
         obj["primary_currency"]
         for obj in objects(documents)
@@ -64,13 +97,15 @@ def extract_listings(documents, country, scoped=False):
         ident = str(value.get("id", ""))
         if not isinstance(title, str) or not title.strip() or not ident.isdigit():
             continue
-        if (
-            value.get("is_sold")
-            or value.get("is_pending")
-            or value.get("is_hidden")
-            or value.get("is_live") is False
+        is_sold = value.get("is_sold") is True
+        is_pending = value.get("is_pending") is True
+        if value.get("is_hidden") or (
+            value.get("is_live") is False and not (is_sold or is_pending)
         ):
             continue
+        if (is_sold or is_pending) and not include_sold:
+            continue
+        status = "sold" if is_sold else "pending" if is_pending else "active"
         price = value.get("listing_price") or {}
         reverse = (value.get("location") or {}).get("reverse_geocode") or {}
         location = ", ".join(str(reverse[key]) for key in ("city", "state") if reverse.get(key))
@@ -85,6 +120,8 @@ def extract_listings(documents, country, scoped=False):
             str(price["amount"]) if price.get("amount") is not None else None,
             price_currency(price, default_currency),
             location,
+            status=status,
+            distance_km=distance_km(center, listing_coordinates([value], ident)),
             image_url=((value.get("primary_listing_photo") or {}).get("image") or {}).get("uri"),
         )
     return list(found.values())

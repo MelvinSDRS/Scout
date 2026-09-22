@@ -6,6 +6,7 @@ import uuid
 from dataclasses import asdict
 
 from .models import SearchSpec, Watch, matches
+from .pricing import HISTORY_SCHEMA, price_report, record_observations
 from .providers.facebook import REGIONS
 
 SCHEMA = """
@@ -31,6 +32,7 @@ class Searches:
         self.store = store
         with store.connect() as db:
             db.executescript(SCHEMA)
+            db.executescript(HISTORY_SCHEMA)
 
     def submit(self, spec: SearchSpec):
         ident = uuid.uuid4().hex
@@ -40,7 +42,7 @@ class Searches:
             (
                 source,
                 country,
-                [r["city"] for r in REGIONS[country]],
+                [spec.pricing.city] if spec.pricing else [r["city"] for r in REGIONS[country]],
             )
             for source in spec.sources
             for country in spec.countries
@@ -129,6 +131,8 @@ class Searches:
                         now,
                     ),
                 )
+            if spec.pricing:
+                record_observations(db, spec, result.listings, now)
             db.execute(
                 "UPDATE search_jobs SET state='done',finished_at=?,result_count=?,radius_km=?,coverage_warning=?,saturated=? WHERE id=?",
                 (
@@ -197,7 +201,7 @@ class Searches:
         for country in spec["countries"]:
             regions = [j for j in jobs if j["country"] == country]
             for region in regions:
-                region["name"] = next(
+                region["name"] = (spec.get("pricing") or {}).get("label") or next(
                     (r["name"] for r in REGIONS[country] if r["city"] == region["anchor"]),
                     "Country search",
                 )
@@ -252,6 +256,22 @@ class Searches:
             "offset": offset,
             "items": [{**json.loads(r["payload"]), "matched": bool(r["matched"])} for r in rows],
         }
+
+    def pricing_report(self, ident):
+        search = self.get(ident)
+        if search is None:
+            raise KeyError(ident)
+        spec = SearchSpec.model_validate(search["spec"])
+        if spec.pricing is None:
+            raise ValueError("This search is not a price check")
+        with self.store.connect() as db:
+            items = [
+                json.loads(r[0])
+                for r in db.execute(
+                    "SELECT payload FROM search_listings WHERE search_id=? AND matched=1", (ident,)
+                )
+            ]
+            return price_report(db, spec, items, search)
 
     def create_watch(self, ident, name=None, interval=60):
         with self.store.connect() as db:

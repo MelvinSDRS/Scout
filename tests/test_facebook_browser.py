@@ -138,6 +138,7 @@ def test_cached_radius_change_reloads_to_verify_server_parameters(tmp_path, monk
                     """<html><body>
 <button onclick="document.querySelector('[role=dialog]').style.display='block'">Within 500 km</button>
 <div role="dialog" style="display:none">
+<input type="text" aria-label="Location" value="Test city">
 <button role="combobox" onclick="document.querySelector('[role=option]').style.display='block'">Radius</button>
 <div role="option" style="display:none" onclick="this.style.display='none'">500 kilometres</div>
 <button onclick="document.querySelector('[role=dialog]').style.display='none'">Apply</button>

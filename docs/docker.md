@@ -70,10 +70,26 @@ Chromium receives a 256 MiB shared-memory mount.
 Build and start the two services after the existing VPN prerequisites are ready:
 
 ```sh
+mkdir -p .deploy/src
+rsync -a --delete --exclude='__pycache__/' --exclude='*.pyc' src/ .deploy/src/
 docker compose build --pull
 docker compose up -d
 docker compose ps
 ```
+
+The Compose source mount serves the ignored `.deploy/src` directory read-only at
+`/opt/scout/src`. Keep it outside `data/`, which Scout can write inside the container.
+The image also installs Scout as a regular package, so an empty or missing
+`.deploy/src` falls back to the image copy instead of preventing startup.
+After the first start, deploy source changes from this checkout with
+`bash tools/deploy-code.sh`. It copies `src/` into the ignored deployed directory,
+restarts only Scout so Python changes load, and waits for its health check. Dashboard
+HTML, CSS, and JavaScript updates are served from the copied files; the gateway
+and image stay in place. When `pyproject.toml`, `uv.lock`, or `Dockerfile`
+changes, or installed system/browser dependencies need updating, rebuild with
+`docker compose build scout` and recreate with `docker compose up -d --no-deps scout`.
+Applying the source mount to an existing container requires one Compose
+recreation; the deploy script handles that initial transition.
 
 The Scout command is `scout serve --no-open`. No host Chrome, host Playwright
 installation, or external CDP endpoint is used. The gateway preserves the

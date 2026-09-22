@@ -7,6 +7,7 @@ ENV UV_COMPILE_BYTECODE=1 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/opt/scout/src \
     PATH=/opt/scout/.venv/bin:$PATH
 
 WORKDIR /opt/scout
@@ -20,7 +21,7 @@ COPY src ./src
 RUN apt-get update \
     && apt-get install --no-install-recommends -y xvfb xauth x11vnc novnc \
     && rm -rf /var/lib/apt/lists/* \
-    && uv sync --frozen --no-dev \
+    && uv sync --frozen --no-dev --no-editable \
     && DEBIAN_FRONTEND=noninteractive uv run --no-sync playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/* \
     && chmod -R a+rX /ms-playwright

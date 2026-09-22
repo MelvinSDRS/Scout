@@ -8,6 +8,7 @@ from pathlib import Path
 
 PRIVATE_DIRS = {
     "data",
+    ".deploy",
     ".venv",
     ".git",
     ".agents",

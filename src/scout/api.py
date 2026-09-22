@@ -54,6 +54,10 @@ def create_app(store, settings, start_worker=True):
         return response
 
     @app.get("/", response_class=HTMLResponse)
+    @app.get("/explore", response_class=HTMLResponse)
+    @app.get("/sell-price", response_class=HTMLResponse)
+    @app.get("/watches", response_class=HTMLResponse)
+    @app.get("/status", response_class=HTMLResponse)
     def index():
         return files("scout").joinpath("index.html").read_text()
 
@@ -103,6 +107,14 @@ def create_app(store, settings, start_worker=True):
     ):
         find_search(ident)
         return searches.results(ident, country, suggestions, offset, limit)
+
+    @app.get("/api/searches/{ident}/pricing", dependencies=[Depends(authorize)])
+    def pricing_report(ident: str):
+        find_search(ident)
+        try:
+            return searches.pricing_report(ident)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
 
     @app.post("/api/searches/{ident}/cancel", dependencies=[Depends(authorize)])
     def cancel_search(ident: str):

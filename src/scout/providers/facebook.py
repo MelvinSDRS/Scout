@@ -5,27 +5,36 @@ import json
 import logging
 import re
 import time
+from dataclasses import replace
 from importlib.resources import files
+from unicodedata import normalize
 from urllib.parse import parse_qs, urlencode
 
-from ..models import AccessBlocked, SearchResult
+from ..geography import distance_km
+from ..models import AccessBlocked, SearchResult, matches
 from .facebook_data import (
     applied_radius,
+    applied_search_center,
     choose_radius,
     confirmed_empty,
     extract_listings,
+    listing_coordinates,
     more_results,
+    objects,
     search_feeds,
 )
 from .facebook_location import (
     HomeLocation,
     capture_home,
     configure_partner_selection,
+    open_location,
     restore_home,
     save_home,
 )
 
 REGIONS = json.loads(files("scout").joinpath("regions.json").read_text())
+CITY_ANCHOR = re.compile(r"^[a-z0-9][a-z0-9-]{0,99}$")
+MAX_RADIUS_KM = 805
 
 # A batch session is entered outside the worker's per-query deadline. Keep browser
 # startup, persisted recovery, and the initial preference capture finite on their own.
@@ -47,14 +56,81 @@ if not logger.handlers:
     logger.propagate = False
 
 
-def search_url(query, country, city):
-    region = next(r for r in REGIONS[country] if r["city"] == city)
+def _validated_custom_radius(radius_km):
+    if isinstance(radius_km, bool) or not isinstance(radius_km, int):
+        raise ValueError("Facebook radius_km must be an integer")
+    if not 1 <= radius_km <= MAX_RADIUS_KM:
+        raise ValueError(f"Facebook radius_km must be between 1 and {MAX_RADIUS_KM}")
+    return radius_km
+
+
+def _validated_anchor(anchor):
+    if not isinstance(anchor, str) or not CITY_ANCHOR.fullmatch(anchor):
+        raise ValueError("Facebook anchor must be a city slug or numeric city id")
+    return anchor
+
+
+def _city_slug(value):
+    value = normalize("NFKD", value).encode("ascii", "ignore").decode().casefold()
+    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", value)).strip("-")
+
+
+def _search_city_identities(documents):
+    identities = {}
+    for obj in objects(documents):
+        stories = obj.get("marketplace_feed_stories")
+        if not isinstance(stories, dict):
+            continue
+        selected = stories.get("buy_location")
+        if not isinstance(selected, dict):
+            continue
+        city_id = selected.get("id")
+        display_name = selected.get("display_name")
+        if (
+            isinstance(city_id, (str, int))
+            and re.fullmatch(r"[0-9]+", str(city_id))
+            and isinstance(display_name, str)
+            and display_name.strip()
+        ):
+            key = (str(city_id), display_name.strip())
+            canonical_slug = selected.get("slug")
+            identities.setdefault(key, set())
+            if isinstance(canonical_slug, str) and canonical_slug.strip():
+                identities[key].add(canonical_slug.strip())
+    return [(*key, tuple(slugs)) for key, slugs in identities.items()]
+
+
+def _verify_custom_anchor(documents, anchor):
+    identities = _search_city_identities(documents)
+    if len(identities) != 1:
+        raise RuntimeError("Could not verify Facebook search city")
+    city_id, display_name, canonical_slugs = next(iter(identities))
+    if anchor.isdigit():
+        matches = city_id == anchor
+    else:
+        names = [display_name]
+        if "," in display_name:
+            names.append(display_name.split(",", 1)[0])
+        names.extend(canonical_slugs)
+        matches = any(_city_slug(name) == anchor for name in names)
+    if not matches:
+        raise RuntimeError("Could not verify Facebook search city")
+    return city_id, display_name
+
+
+def search_url(query, country, city, radius_km=None):
+    if radius_km is None:
+        region = next(r for r in REGIONS[country] if r["city"] == city)
+        radius = region["radius"]
+    else:
+        _validated_anchor(city)
+        radius = _validated_custom_radius(radius_km)
     # Newest-first can bury exact model matches beneath Facebook's relaxed
     # suggestions. Use its default relevance order; alerts still deduplicate IDs.
     return f"https://www.facebook.com/marketplace/{city}/search?" + urlencode(
         {
             "query": query,
-            "radius": region["radius"],
+            "radius": radius,
             "exact": "true",
         }
     )
@@ -116,10 +192,21 @@ class Facebook:
             await self.playwright.stop()
         self.context = self.playwright = self.browser = None
 
-    async def search(self, query, country, anchor):
+    async def search(
+        self, query, country, anchor, *, radius_km=None, include_sold=False, pricing_spec=None
+    ):
         """Run one search with the same durable preference safety as a batch."""
         async with self.scan_session() as session:
-            return await session.search(query, country, anchor)
+            if radius_km is None and not include_sold:
+                return await session.search(query, country, anchor)
+            return await session.search(
+                query,
+                country,
+                anchor,
+                radius_km=radius_km,
+                include_sold=include_sold,
+                **({"pricing_spec": pricing_spec} if pricing_spec is not None else {}),
+            )
 
     def scan_session(self):
         """Return a context manager for several serialized searches."""
@@ -192,7 +279,14 @@ class Facebook:
                 f"saved settings retained for retry ({reason})"
             ) from exc
 
-    async def _search(self, query, country, anchor):
+    async def _search(
+        self, query, country, anchor, *, radius_km=None, include_sold=False, pricing_spec=None
+    ):
+        if radius_km is None:
+            desired = next(r["radius"] for r in REGIONS[country] if r["city"] == anchor)
+        else:
+            _validated_anchor(anchor)
+            desired = _validated_custom_radius(radius_km)
         await self.start()
         page = await self.context.new_page()
         started = time.monotonic()
@@ -306,8 +400,15 @@ class Facebook:
             return data
 
         try:
+            url = (
+                search_url(query, country, anchor)
+                if radius_km is None
+                else search_url(query, country, anchor, radius_km=radius_km)
+            )
             response = await page.goto(
-                search_url(query, country, anchor), wait_until="domcontentloaded", timeout=45000
+                url,
+                wait_until="domcontentloaded",
+                timeout=45000,
             )
             if response and response.status in (401, 403, 429):
                 raise AccessBlocked(f"Facebook HTTP {response.status}; login or rate limit")
@@ -323,13 +424,11 @@ class Facebook:
                 ),
                 SEARCH_RESPONSE_TIMEOUT,
             )
+            if radius_km is not None:
+                _verify_custom_anchor(initial + documents, anchor)
             actual = applied_radius(initial) or applied_radius(requests)
-            desired = next(r["radius"] for r in REGIONS[country] if r["city"] == anchor)
             if actual != desired:
-                await page.get_by_text(
-                    re.compile(r"Dans un rayon de|Within .* (?:km|miles)|within .* (?:km|miles)")
-                ).first.click(timeout=10000)
-                dialog = page.get_by_role("dialog")
+                dialog = await open_location(page)
                 await dialog.get_by_role("combobox").last.click()
                 options = await page.get_by_role("option").all_text_contents()
                 selected, label = choose_radius(options, desired)
@@ -413,18 +512,49 @@ class Facebook:
             if pending:
                 await asyncio.gather(*list(pending))
             combined = initial + documents
-            listings = extract_listings(combined, country, scoped=True)
+            city_note = None
+            center = None
+            if radius_km is not None:
+                # Radius changes/reloads can discard earlier documents. Re-read
+                # the rendered city identity before accepting the final sample.
+                _, city_name = _verify_custom_anchor(
+                    await read_initial_documents() + documents, anchor
+                )
+                city_note = f"Marketplace city: {city_name}. Confirm this is your intended area."
+                center = applied_search_center(requests if requests else combined, actual)
+                if center is None:
+                    raise RuntimeError(
+                        "Could not verify the search center coordinates; price check stopped"
+                    )
+            listings = extract_listings(
+                combined,
+                country,
+                scoped=True,
+                include_sold=include_sold,
+                center=center,
+            )
             if not listings and not confirmed_empty(combined):
                 raise RuntimeError(
                     "No structured search result or confirmed empty result; Facebook layout is unverified"
                 )
+            if pricing_spec is not None:
+                listings = await self._measure_pricing_listings(listings, center, pricing_spec)
             return SearchResult(
                 listings,
                 saturated=bool(listings) and more_results(combined),
                 radius_km=actual,
-                coverage_warning=f"Facebook applied {actual} km (requested {desired} km)"
-                if abs(actual - desired) > 1
-                else None,
+                coverage_warning=" ".join(
+                    filter(
+                        None,
+                        [
+                            city_note,
+                            f"Facebook applied {actual} km (requested {desired} km)"
+                            if abs(actual - desired) > 1
+                            else None,
+                        ],
+                    )
+                )
+                or None,
             )
         finally:
             logger.info(
@@ -441,6 +571,57 @@ class Facebook:
             await page.close()
             if pending:
                 await asyncio.gather(*list(pending), return_exceptions=True)
+
+    async def _measure_pricing_listings(self, listings, center, spec):
+        """Search cards omit coordinates; inspect a bounded set of matching details."""
+        measured = list(listings)
+        checked = 0
+        try:
+            async with asyncio.timeout(60):
+                for index, listing in enumerate(listings):
+                    if listing.distance_km is not None or not matches(spec, listing):
+                        continue
+                    if listing.status not in ("active", "sold") or checked >= 24:
+                        continue
+                    checked += 1
+                    try:
+                        async with asyncio.timeout(10):
+                            point = await self._detail_coordinates(listing)
+                    except AccessBlocked:
+                        raise
+                    except (TimeoutError, RuntimeError):
+                        continue  # Unknown stays excluded, never assumed local.
+                    measured[index] = replace(listing, distance_km=distance_km(center, point))
+        except TimeoutError:
+            pass  # The report explicitly counts unmatched distance evidence.
+        return measured
+
+    async def _detail_coordinates(self, listing):
+        page = await self.context.new_page()
+        try:
+            # Construct the canonical URL from the parsed numeric ID, never a seller URL.
+            response = await page.goto(
+                f"https://www.facebook.com/marketplace/item/{listing.id}/",
+                wait_until="domcontentloaded",
+                timeout=8000,
+            )
+            if response and response.status in (401, 403, 429):
+                raise AccessBlocked(f"Facebook HTTP {response.status}; login or rate limit")
+            await check_access(page)
+            for attempt in range(4):
+                documents = []
+                for script in await page.locator(
+                    'script[type="application/json"]'
+                ).all_text_contents():
+                    documents.extend(json_documents(script))
+                point = listing_coordinates(documents, listing.id)
+                if point is not None:
+                    return point
+                if attempt < 3:
+                    await asyncio.sleep(0.25)
+            return None
+        finally:
+            await page.close()
 
 
 async def check_access(page):
@@ -527,13 +708,24 @@ class _FacebookScanSession:
                 self._release_lock()
         return False
 
-    async def search(self, query, country, anchor):
+    async def search(
+        self, query, country, anchor, *, radius_km=None, include_sold=False, pricing_spec=None
+    ):
         # _search changes account-wide Marketplace radius when Facebook does not
         # apply the requested region. Serialize queries even within this session.
         async with self._query_lock:
             if not self._entered or self._closed:
                 raise RuntimeError("Facebook scan session is not active")
-            return await self.provider._search(query, country, anchor)
+            if radius_km is None and not include_sold:
+                return await self.provider._search(query, country, anchor)
+            return await self.provider._search(
+                query,
+                country,
+                anchor,
+                radius_km=radius_km,
+                include_sold=include_sold,
+                **({"pricing_spec": pricing_spec} if pricing_spec is not None else {}),
+            )
 
     async def _wait_for_queries_and_restore(self):
         # Drain an in-flight query before restoring account-wide preferences. Marking

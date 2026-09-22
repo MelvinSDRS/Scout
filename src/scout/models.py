@@ -11,6 +11,12 @@ from .image_profiles import PROFILE_ID
 COUNTRIES = {"US": "USD", "CA": "CAD", "FR": "EUR"}
 
 
+class PricingArea(BaseModel):
+    city: str = Field(min_length=1, max_length=100, pattern=r"^[a-z0-9][a-z0-9-]*$")
+    label: str = Field(min_length=1, max_length=100)
+    radius_km: int = Field(default=20, ge=1, le=805)
+
+
 class SearchSpec(BaseModel):
     query: str = Field(min_length=2, max_length=200)
     countries: list[Literal["US", "CA", "FR"]] = Field(min_length=1, max_length=3)
@@ -20,6 +26,7 @@ class SearchSpec(BaseModel):
     image_profile: str | None = Field(default=None, pattern=f"^{PROFILE_ID}$")
     include_any: list[list[str]] = Field(default_factory=list, max_length=10)
     max_prices: dict[str, Decimal] = Field(default_factory=dict)
+    pricing: PricingArea | None = None
 
     @model_validator(mode="after")
     def validate_values(self):
@@ -28,6 +35,8 @@ class SearchSpec(BaseModel):
             raise ValueError("Query cannot be blank")
         self.countries = list(dict.fromkeys(self.countries))
         self.sources = list(dict.fromkeys(self.sources))
+        if self.pricing and (len(self.countries) != 1 or self.image_profile or self.max_prices):
+            raise ValueError("Price checks need one country, title filters and no price ceiling")
         for currency, price in self.max_prices.items():
             if currency not in COUNTRIES.values() or not price.is_finite() or price < 0:
                 raise ValueError("Prices must be nonnegative amounts in USD, CAD or EUR")
@@ -47,6 +56,8 @@ class Watch(SearchSpec):
 
     @model_validator(mode="after")
     def validate_name(self):
+        if self.pricing:
+            raise ValueError("Price checks cannot be converted to notification watches")
         self.name = self.name.strip()
         if not self.name:
             raise ValueError("Name cannot be blank")
@@ -65,6 +76,8 @@ class Listing:
     location: str = ""
     price_kind: str = "price"
     image_url: str | None = None
+    status: str = "active"
+    distance_km: float | None = None
 
 
 @dataclass

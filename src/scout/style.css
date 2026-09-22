@@ -84,8 +84,7 @@ input[type="checkbox"] {
   color: var(--muted);
   border: 1px solid var(--line);
 }
-.eyebrow,
-.nav-label {
+.eyebrow {
   font-size: 10px;
   font-weight: 750;
   letter-spacing: 2px;
@@ -143,17 +142,16 @@ aside {
   padding: 3px 4px;
   margin-left: 2px;
 }
-.nav-label {
-  margin: 55px 0 18px;
-  color: #9aaf9f;
-  font-size: 9px;
-  letter-spacing: 1.4px;
-}
 nav {
+  margin-top: 44px;
   display: grid;
   gap: 7px;
 }
 nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
   text-align: left;
   background: transparent;
   color: #adc0b0;
@@ -164,14 +162,17 @@ nav button.active {
   background: #36503d;
   color: var(--accent);
 }
-nav span {
-  display: inline-block;
-  font-size: 20px;
-  width: 25px;
-  vertical-align: middle;
+nav .nav-icon {
+  display: block;
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+nav .nav-label {
+  flex: 1;
 }
 nav b {
-  float: right;
+  margin-left: auto;
   font-size: 10px;
   padding: 3px 6px;
   background: #233e2d;
@@ -195,41 +196,22 @@ nav b {
 .connection i.online {
   background: #b3d78d;
 }
-.sidebar-bottom p {
-  font: 20px/1.4 Georgia;
-  color: #afc2ac;
-  margin: 25px 0;
-}
-.sidebar-bottom button {
-  color: #a9bda9;
-  border: 0;
-  padding-left: 0;
-  font-size: 11px;
-}
 main {
   margin-left: 224px;
-  padding: 0 48px;
+  padding: 0 48px 48px;
   max-width: 1800px;
 }
 header {
-  height: 91px;
+  height: 68px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  border-bottom: 1px solid var(--line);
   font-size: 10px;
   letter-spacing: 1.6px;
   color: var(--muted);
 }
-.private-tag {
-  letter-spacing: 0;
-  font-size: 11px;
-}
 .hero {
-  padding: 44px 0 26px;
-}
-.hero .eyebrow {
-  color: #65815b;
+  padding: 28px 0 30px;
 }
 h1 {
   font:
@@ -342,6 +324,222 @@ dialog label {
 .filter-grid input {
   width: 100%;
 }
+.pricing-panel {
+  margin-bottom: 0;
+}
+.pricing-fields {
+  display: grid;
+  grid-template-columns: 2fr 1.25fr 0.9fr;
+  gap: 16px;
+  padding-top: 18px;
+}
+.pricing-fields label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+}
+.pricing-fields input,
+.pricing-fields select {
+  width: 100%;
+}
+.input-with-suffix {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+  padding-right: 10px;
+}
+.input-with-suffix input {
+  border: 0;
+  width: 100%;
+}
+.input-with-suffix span {
+  color: var(--muted);
+  font-size: 11px;
+}
+#pricing-filters {
+  margin-top: 17px;
+}
+#pricing-filters .filter-grid {
+  grid-template-columns: 1fr 1fr;
+}
+.pricing-recent-line {
+  margin-bottom: 28px;
+}
+#pricing-recent {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+#pricing-recent button {
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #64725d;
+  border-radius: 20px;
+}
+#pricing-recent button.selected {
+  border-color: #758b68;
+  background: #edf1e6;
+}
+.pricing-state {
+  padding: 28px 20px;
+  margin: 20px 0;
+  border-radius: 10px;
+  background: #edf2e8;
+  color: #667660;
+  text-align: center;
+  font-size: 13px;
+}
+.pricing-state.error {
+  background: #f8ece8;
+  color: #9b4d3c;
+}
+.pricing-state.empty {
+  background: #eef2e8;
+}
+.pricing-cards {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin: 22px 0 13px;
+}
+.pricing-card {
+  min-height: 100px;
+  padding: 16px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.pricing-card > span:first-child {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.pricing-card-value {
+  display: block;
+  margin-top: 8px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.pricing-card small {
+  display: block;
+  margin-top: 4px;
+}
+.pricing-warnings {
+  padding: 10px 14px;
+  margin: 13px 0;
+  border: 1px solid #e2d6ae;
+  border-radius: 8px;
+  background: #faf5e5;
+  color: #716143;
+}
+.pricing-warnings p {
+  margin: 4px 0;
+  font-size: 12px;
+}
+.pricing-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 24px 0 30px;
+}
+.chart-card {
+  min-width: 0;
+  padding: 20px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.chart-card h3,
+.pricing-comparables h3 {
+  margin: 7px 0 4px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.histogram {
+  height: 195px;
+  display: flex;
+  align-items: end;
+  gap: 7px;
+  padding: 20px 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.histogram-bin {
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  align-items: center;
+  gap: 6px;
+}
+.histogram-bar {
+  width: 100%;
+  min-height: 4px;
+  border-radius: 4px 4px 0 0;
+  background: #9cb579;
+}
+.histogram-bin small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+}
+.chart-empty {
+  align-self: center;
+  margin: auto;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+.speed-chart {
+  min-height: 195px;
+  position: relative;
+  overflow: hidden;
+}
+.speed-chart svg {
+  width: 100%;
+  height: 195px;
+}
+.speed-chart .axis {
+  stroke: #cfd8c9;
+  stroke-width: 1;
+}
+.speed-chart .speed-point {
+  fill: #52764c;
+  stroke: white;
+  stroke-width: 2;
+}
+.speed-chart .axis-label {
+  fill: #78837b;
+  font-size: 11px;
+  text-anchor: middle;
+}
+.speed-chart .axis-value {
+  text-anchor: end;
+}
+.speed-points {
+  display: flex;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  padding: 0;
+  margin: 3px 0 0 50px;
+  color: var(--muted);
+  font-size: 10px;
+  list-style: none;
+}
+.pricing-comparables {
+  margin: 25px 0 32px;
+}
+.pricing-comparables .listing-grid {
+  margin-top: 15px;
+}
 .recent-line {
   display: flex;
   gap: 15px;
@@ -374,73 +572,19 @@ dialog label {
 }
 .welcome {
   text-align: center;
-  border: 1px dashed #d2dacb;
-  border-radius: 12px;
-  padding: 25px 20px 34px;
-}
-.map-art {
-  height: 130px;
-  max-width: 430px;
-  margin: auto;
-  position: relative;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  background: radial-gradient(ellipse at center, #e3ead8 0, transparent 70%);
-}
-.map-art:before {
-  content: "";
-  position: absolute;
-  left: 15%;
-  right: 15%;
-  top: 50%;
-  border-top: 2px dashed #b7c4a7;
-  transform: rotate(-8deg);
-}
-.map-art > span {
-  z-index: 1;
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  background: white;
-  border-radius: 50%;
-  box-shadow: 0 4px 16px #324c2814;
-  font-size: 23px;
-}
-.map-art > span:nth-child(2) {
-  transform: translateY(-24px);
-}
-.map-caption {
-  position: absolute;
-  bottom: 0;
-  font-size: 8px;
-  letter-spacing: 2px;
-  color: #889876;
+  padding: 64px 20px;
 }
 h2 {
   font: normal 25px/1.25 Georgia;
   margin: 15px 0 10px;
   letter-spacing: -0.4px;
 }
+.welcome h2 {
+  font-size: 23px;
+}
 .welcome p {
   font-size: 13px;
   color: var(--muted);
-}
-.steps {
-  display: flex;
-  justify-content: center;
-  gap: 28px;
-  margin-top: 25px;
-  font-size: 10px;
-  color: #6d7a65;
-}
-.steps b {
-  border-radius: 50%;
-  border: 1px solid var(--line);
-  padding: 4px 6px;
-  margin-right: 7px;
-  color: #4a6540;
 }
 .results-heading {
   display: flex;
@@ -666,19 +810,6 @@ h2 {
   color: var(--muted);
   font-size: 12px;
 }
-footer {
-  display: flex;
-  justify-content: space-between;
-  border-top: 1px solid var(--line);
-  padding: 22px 0;
-  margin-top: 50px;
-  color: #8c9884;
-  font-size: 9px;
-  letter-spacing: 1px;
-}
-footer span {
-  letter-spacing: 0;
-}
 #notice {
   background: #edf1df;
   border: 1px solid #beca9f;
@@ -756,8 +887,11 @@ dialog .actions {
   .filter-grid {
     grid-template-columns: 1fr 1fr;
   }
-  .steps {
-    gap: 14px;
+  .pricing-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+  .pricing-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 @media (max-width: 740px) {
@@ -775,7 +909,6 @@ dialog .actions {
     height: 30px;
     font-size: 28px;
   }
-  .nav-label,
   .sidebar-bottom {
     display: none;
   }
@@ -785,13 +918,21 @@ dialog .actions {
     gap: 5px;
   }
   nav button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
     font-size: 11px;
     flex: 1;
     padding: 8px;
+    white-space: nowrap;
   }
-  nav span {
-    font-size: 16px;
-    width: 17px;
+  nav .nav-icon {
+    width: 18px;
+    height: 18px;
+  }
+  nav .nav-label {
+    flex: none;
   }
   nav b {
     display: none;
@@ -803,9 +944,6 @@ dialog .actions {
   header {
     height: 58px;
     font-size: 8px;
-  }
-  .private-tag {
-    font-size: 9px;
   }
   .hero {
     padding: 30px 0 24px;
@@ -844,12 +982,8 @@ dialog .actions {
   .recent-line {
     margin-bottom: 24px;
   }
-  .steps {
-    flex-direction: column;
-    gap: 17px;
-  }
   .welcome {
-    padding: 20px 10px;
+    padding: 48px 10px;
   }
   .welcome h2 {
     font-size: 22px;
@@ -864,9 +998,6 @@ dialog .actions {
   .results-heading .actions {
     margin-bottom: 15px;
   }
-  .progress-caption span:last-child {
-    display: none;
-  }
   .tabs {
     gap: 10px;
   }
@@ -875,6 +1006,17 @@ dialog .actions {
   }
   .results-toolbar {
     flex-wrap: wrap;
+  }
+  .pricing-fields,
+  #pricing-filters .filter-grid,
+  .pricing-charts {
+    grid-template-columns: 1fr;
+  }
+  .pricing-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pricing-card-value {
+    font-size: 17px;
   }
   .listing-grid {
     gap: 10px;
@@ -902,10 +1044,6 @@ dialog .actions {
   }
   .region-row {
     align-items: flex-start;
-  }
-  footer {
-    gap: 20px;
-    font-size: 8px;
   }
   .login {
     margin: 5vh auto;

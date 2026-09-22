@@ -7,7 +7,10 @@ from decimal import Decimal
 
 from .facebook_data import objects
 
-LOCATION_BUTTON = re.compile(r"Dans un rayon de|Within .* (?:km|miles)|within .* (?:km|miles)")
+LOCATION_BUTTON = re.compile(
+    r"(?:Dans un rayon de|Within)\s+\d+(?:[.,]\d+)?\s*(?:km|kilom[èe]tres?|mi(?:les?)?)\b",
+    re.IGNORECASE,
+)
 APPLY_BUTTON = re.compile(r"^(Appliquer|Apply)$")
 PARTNER_DIALOG_TITLE = re.compile(
     r"(?:Explorez plus d['’]articles|Explore more (?:items|listings))", re.IGNORECASE
@@ -43,7 +46,9 @@ class HomeLocation:
 
 
 async def open_location(page):
-    await page.get_by_text(LOCATION_BUTTON).first.click(timeout=10000)
+    # Empty-result messages also mention a radius; only the location button opens
+    # the controls. US pages abbreviate miles as "mi" in this button.
+    await page.get_by_role("button", name=LOCATION_BUTTON).click(timeout=10000)
     dialog = (
         page.get_by_role("dialog")
         .filter(has=page.locator('input:not([type]), input[type="text"], input[type="search"]'))
@@ -62,7 +67,9 @@ async def configure_partner_selection(page):
     dialog with both known partner markers is actionable; an unknown dialog is
     left untouched and reported as an error rather than receiving generic clicks.
     """
-    dialogs = page.get_by_role("dialog")
+    # Keep indices stable if an unrelated dialog appears or disappears during
+    # the scan; visible-only role locators change their nth targets in that case.
+    dialogs = page.get_by_role("dialog", include_hidden=True)
     candidates = []
     for index in range(await dialogs.count()):
         dialog = dialogs.nth(index)
